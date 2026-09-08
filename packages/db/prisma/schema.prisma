@@ -1,0 +1,475 @@
+// Prequate Table member portal — data model.
+// SQLite for the prototype. Swapping to Postgres for production is a
+// datasource change plus a migration.
+//
+// SQLite's Prisma connector has no native enum type, so fields that would
+// normally be enums (role, status, etc.) are plain strings here. The valid
+// values for each are defined as TypeScript union types in
+// packages/core/src/types.ts — read from there, not from this file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// PRODUCTION NOTE (DPDPA): this table stores member personal data (name,
+// phone, email, bio). A production release must add consent capture at
+// collection, a documented retention period, and a data-deletion path
+// before this holds real member data. Not built in this prototype.
+model User {
+  id              String  @id @default(cuid())
+  // Role: "MEMBER" | "PARTNER" | "ADMIN_OWNER" | "ADMIN_RM" | "ADMIN_ASSOCIATE"
+  role            String
+  name            String
+  phone           String? @unique
+  email           String? @unique
+  seatType        String?
+  seatNumber      String? @unique
+  bio             String?
+  // A longer form of `bio`, curated by an admin (typically from the
+  // member's LinkedIn) and shown only behind "Read more" on the directory
+  // profile — never sourced from internal notes or the audit timeline.
+  longBio         String?
+  linkedinUrl     String?
+  photoUrl        String?
+  points          Int     @default(0)
+  directoryOptOut Boolean @default(false)
+
+  // Admin-set tags used to build targeted event invite lists (e.g. invite
+  // everyone in "FMCG" or everyone tagged "Second-generation"). Freeform,
+  // not a fixed enum — the admin invite flow reads whatever values exist
+  // across members to build its filter options.
+  sector    String?
+  archetype String?
+
+  // Last time this member completed a login. Distinct from firstLoginAt —
+  // used to surface "last used the app" on the admin member profile.
+  lastActiveAt DateTime?
+
+  // LifecycleStatus: "PROSPECT" | "ACTIVE" | "AT_RISK" | "PAUSED" | "ALUMNI"
+  // Only meaningful for role "MEMBER". Existing members default to ACTIVE;
+  // new ones can be created as PROSPECT before they're formally seated.
+  lifecycleStatus String @default("ACTIVE")
+
+  // Privacy: whether a partner may open a direct message thread with this
+  // member. Doesn't affect the RM thread, which always exists.
+  allowPartnerMessages Boolean @default(true)
+
+  // Set the first time a member completes login. Gates the one-time
+  // quiet-arrival screen — shown once, never again after.
+  firstLoginAt DateTime?
+
+  // Simulated NFC chip identifier. In production this is provisioned onto
+  // the physical plate's chip; here it is a stand-in value used only by
+  // the stubbed "tap" login screen to look up a member.
+  chipUid String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  otpCodes                  OtpCode[]
+  sessions                  Session[]
+  bookingsAsMember          Booking[]                  @relation("MemberBookings")
+  bookingsAsPartner         Booking[]                  @relation("PartnerBookings")
+  briefsAuthored            Brief[]
+  eventAttendances          EventAttendance[]
+  conciergeRequests         ConciergeRequest[]
+  memberThread              Message[]                  @relation("MemberThread")
+  partnerThread             Message[]                  @relation("PartnerThread")
+  messagesAuthored          Message[]                  @relation("MessageAuthor")
+  insightPosts              InsightPost[]
+  googleCalendarConnections GoogleCalendarConnection[]
+  timelineEntries           MemberTimelineEntry[]      @relation("MemberTimeline")
+  timelineAuthored          MemberTimelineEntry[]      @relation("TimelineAuthor")
+  introductionsRequested    IntroductionRequest[]      @relation("IntroductionRequester")
+  introductionsReceived     IntroductionRequest[]      @relation("IntroductionTarget")
+  insightBookmarks          InsightBookmark[]
+}
+
+// A member asking Prequate to broker an introduction to another member,
+// browsed from the directory. Tracked like a concierge request so it has a
+// status and doesn't get lost in a message thread.
+model IntroductionRequest {
+  id          String   @id @default(cuid())
+  requesterId String
+  requester   User     @relation("IntroductionRequester", fields: [requesterId], references: [id])
+  targetId    String
+  target      User     @relation("IntroductionTarget", fields: [targetId], references: [id])
+  // Why the requester would like to be introduced — shown to the target
+  // once routed, and back to the requester as a record of what they asked.
+  message     String?
+  // How the requester prefers to be contacted (email, phone, WhatsApp, etc).
+  preferredChannel String?
+  // Freeform — website, LinkedIn, company, whatever the requester wants the
+  // target to see before deciding.
+  contactDetails   String?
+  // Status: "SENT" | "ACCEPTED" | "DECLINED" | "FULFILLED"
+  status      String   @default("SENT")
+  adminNote   String?
+
+  // Set by an admin once they've reviewed the request and chosen to pass
+  // it on. The target member only ever sees the request in their own
+  // "Introductions" list after this is set — never as soon as it's sent.
+  routedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A combined feed of manual notes and system-recorded changes on a member's
+// record. Type "NOTE" is freeform and admin-editable; type "SYSTEM" is
+// generated by the app itself (a status change, a profile edit) and is not
+// meant to be edited after the fact — it's the audit trail.
+model MemberTimelineEntry {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    User     @relation("MemberTimeline", fields: [memberId], references: [id])
+  authorId  String
+  author    User     @relation("TimelineAuthor", fields: [authorId], references: [id])
+  // Type: "NOTE" | "SYSTEM"
+  type      String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A single connected Google account whose calendar receives a real event
+// for every Hour booking. Only one connection is expected at a time — the
+// admin console's connect flow replaces any existing row rather than
+// accumulating them.
+//
+// PRODUCTION NOTE: tokens are stored in plain text here, fine for a local
+// prototype. A production version needs these encrypted at rest.
+model GoogleCalendarConnection {
+  id            String   @id @default(cuid())
+  accountEmail  String   @unique
+  accessToken   String
+  refreshToken  String
+  expiresAt     DateTime
+  connectedById String
+  connectedBy   User     @relation(fields: [connectedById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Phone + OTP login fallback. Codes are short-lived and single-use.
+// PRODUCTION NOTE: this prototype has no SMS provider wired up, so the
+// generated code is surfaced directly in the UI/response instead of sent
+// by SMS. Replace with a real SMS/OTP provider before production.
+model OtpCode {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  code       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// PRODUCTION NOTE: sessions here are a plain server-side token in a cookie,
+// with no rotation, device binding, or hardened expiry handling. Sufficient
+// for a prototype; needs real session hardening before production.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  memberId      String
+  member        User     @relation("MemberBookings", fields: [memberId], references: [id])
+  partnerId     String
+  partner       User     @relation("PartnerBookings", fields: [partnerId], references: [id])
+  startTime     DateTime
+  endTime       DateTime
+  // Status: "REQUESTED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "CANCELLED" | "COMPLETED" | "NO_SHOW"
+  status        String   @default("REQUESTED")
+  memberContext String?
+
+  // Set when this booking is a requested follow-up to an earlier session.
+  parentBookingId String?
+  parentBooking   Booking?  @relation("FollowUp", fields: [parentBookingId], references: [id])
+  followUps       Booking[] @relation("FollowUp")
+
+  // Id of the corresponding event in the partner's calendar. Backed by a
+  // mock Google Calendar client in this prototype (see packages/core).
+  googleCalendarEventId String?
+
+  // Set once the 24-hours-before reminder email has gone out for this
+  // booking, so the cron job (see apps/admin/src/app/api/cron) never
+  // sends it twice.
+  reminderSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  briefs Brief[]
+}
+
+model Brief {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String?
+  fileName  String?
+  fileUrl   String?
+  createdAt DateTime @default(now())
+}
+
+// Sourced from Luma in production; backed by a mock Luma client here (see
+// packages/core/src/integrations/luma.ts). lumaEventId is the join key —
+// null for an event created directly in the admin console with no Luma
+// counterpart.
+model Event {
+  id                 String    @id @default(cuid())
+  lumaEventId        String?   @unique
+  title              String
+  // Rich-text HTML, authored the same way as an InsightPost body — sanitized
+  // on the way in, trusted on the way out.
+  description        String?
+  imageUrl           String?
+  location           String?
+  startTime          DateTime
+  endTime            DateTime
+  // Visibility: "VISIBLE_TO_ALL" | "HIDDEN"
+  attendeeVisibility String    @default("HIDDEN")
+  // Tier: "DINNER" | "QUARTERLY" | "ANNUAL"
+  tier               String    @default("DINNER")
+  adminNote          String?
+  publishedAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  // Null means uncapped. Once the number of joined attendees (counting each
+  // person's own guests) reaches this, further joins are waitlisted instead.
+  capacity Int?
+
+  // When true, only members with an invited=true EventAttendance row can
+  // see or join this event — used for the Annual Gathering, but not tied to
+  // any specific tier so any event can be made invite-only.
+  inviteOnly Boolean @default(false)
+
+  // When true, joining sets pendingApproval instead of joined — an admin
+  // must approve (or decline) before the member is confirmed.
+  approvalRequired Boolean @default(false)
+
+  // JSON-encoded array of question strings an admin has added for this
+  // event's RSVP form. Same parse/stringify-at-the-boundary convention as
+  // elsewhere in this schema (see ConciergeCategory.examples).
+  registrationQuestions String?
+
+  // Whether a member can bring anyone at all when they RSVP. Off by
+  // default — an admin turns it on per event, deliberately, not a default.
+  allowPlusOne Boolean @default(false)
+
+  // A random token that resolves (via /events/invite/[token]) to granting
+  // whoever opens it an invited=true row on this event — a link an admin
+  // can generate and forward directly, instead of hand-picking names.
+  inviteToken String? @unique
+
+  attendances EventAttendance[]
+  ticketTypes EventTicketType[]
+}
+
+// A named registration tier for an event (e.g. "General", "VIP"). Optional —
+// an event with none uses its own capacity/approval settings directly.
+// No payment processing here; these are access categories, not checkout.
+model EventTicketType {
+  id        String @id @default(cuid())
+  eventId   String
+  event     Event  @relation(fields: [eventId], references: [id])
+  name      String
+  // Null means it shares the event's own overall capacity rather than
+  // having its own sub-limit.
+  capacity  Int?
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+
+  attendances EventAttendance[]
+}
+
+model EventAttendance {
+  id            String           @id @default(cuid())
+  eventId       String
+  event         Event            @relation(fields: [eventId], references: [id])
+  memberId      String
+  member        User             @relation(fields: [memberId], references: [id])
+  ticketTypeId  String?
+  ticketType    EventTicketType? @relation(fields: [ticketTypeId], references: [id])
+  joined        Boolean          @default(false)
+
+  // Guests the member is bringing, in addition to themselves. For an
+  // invite-only event with named guests (see guestNames), this is derived
+  // from guestNames.length rather than entered directly.
+  guestCount Int @default(0)
+
+  // Set instead of joined=true once the event's capacity is full at the
+  // time they tried to join. Cleared automatically if a spot opens up and
+  // they're promoted (first-come, first-served by createdAt).
+  waitlisted Boolean @default(false)
+
+  // Set instead of joined=true when the event (or its ticket type) requires
+  // approval. An admin flips this to joined=true (approve) or deletes the
+  // row (decline).
+  pendingApproval Boolean @default(false)
+
+  // JSON-encoded array of { question, answer } pairs, captured at RSVP time
+  // against Event.registrationQuestions. Kept as a self-contained snapshot
+  // so it stays correct even if the questions list changes later.
+  registrationAnswers String?
+
+  // Set by an admin when the member is manually checked in at the door.
+  checkedInAt DateTime?
+
+  // Set once an entry has been created on the connected Google Calendar for
+  // this RSVP (mirrors Booking.googleCalendarEventId) — null until joined.
+  googleCalendarEventId String?
+
+  // Set by an admin to grant access to an invite-only event, independent of
+  // joined — a member can be invited without having joined yet.
+  invited Boolean @default(false)
+
+  // Richer RSVP detail, collected on join. Only surfaced in the UI for
+  // invite-only / Annual Gathering-style events, but generic on the model
+  // so any event can use them.
+  dietaryNotes String?
+  travelNotes  String?
+  arrivalDate  DateTime?
+  // JSON-encoded array of named guests, replacing the anonymous guestCount
+  // number for events where who's coming matters (e.g. the Annual
+  // Gathering) — same parse/stringify-at-the-boundary convention as
+  // elsewhere in this schema (see ConciergeCategory.examples).
+  guestNames String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, memberId])
+}
+
+// Structured concierge catalog (group / category / examples), editable
+// from the admin console rather than hardcoded in UI copy.
+// `examples` is a JSON-encoded string array — SQLite has no native array
+// type; parse/stringify at the application boundary (see packages/core).
+model ConciergeCategory {
+  id        String @id @default(cuid())
+  group     String
+  category  String
+  examples  String
+  sortOrder Int    @default(0)
+
+  // Target turnaround, in days, for requests in this category. Null means
+  // no SLA is tracked for it. Set once here; each request's due date is
+  // computed from this at submission time (see ConciergeRequest.dueAt).
+  slaDays Int?
+
+  requests ConciergeRequest[]
+}
+
+model ConciergeRequest {
+  id               String             @id @default(cuid())
+  memberId         String
+  member           User               @relation(fields: [memberId], references: [id])
+  categoryId       String?
+  category         ConciergeCategory? @relation(fields: [categoryId], references: [id])
+  customText       String?
+  // JSON-encoded array of the specific examples chosen within the category
+  // (e.g. ["Reservations", "Private chef access"]) — parse/stringify at the
+  // application boundary, same convention as ConciergeCategory.examples.
+  selectedExamples String?
+  detail           String?
+  // Status: "SUBMITTED" | "AWAITING_APPROVAL" | "ACCEPTED" | "DECLINED" | "FULFILLED"
+  // AWAITING_APPROVAL: admin has proposed something (in vendorNote) and is
+  // waiting on the member to approve or decline it.
+  status           String             @default("SUBMITTED")
+  vendorNote       String?
+  pointsAwarded    Int                @default(0)
+  // Computed at submission from the category's slaDays. Null if the
+  // category had no SLA set at the time this request was made.
+  dueAt            DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+// One thread per member with the RM, plus one further thread per member
+// per partner who has messaged them — all separate from concierge.
+// partnerId is null for the RM thread; set to a specific partner's id for
+// that partner's own private thread with this member.
+model Message {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     User     @relation("MemberThread", fields: [memberId], references: [id])
+  partnerId  String?
+  partner    User?    @relation("PartnerThread", fields: [partnerId], references: [id])
+  // SenderRole: "MEMBER" | "RM" | "PARTNER"
+  senderRole String
+  authorId   String
+  author     User     @relation("MessageAuthor", fields: [authorId], references: [id])
+  body       String
+  // True once the recipient has opened this thread since the message was
+  // sent. Drives the unread badges in both apps' nav and inbox list.
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// A partner or admin's written note: a title, a one-line subheading, an
+// optional hero image (shown inline, not as a download), and the body.
+model InsightPost {
+  id          String    @id @default(cuid())
+  title       String
+  subheading  String?
+  imageUrl    String?
+  body        String
+  // JSON-encoded array of freeform tag strings, admin-set at write time.
+  // Same parse/stringify-at-the-boundary convention as elsewhere in this
+  // schema (see ConciergeCategory.examples).
+  tags        String?
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Status: "IN_REVIEW" | "PUBLISHED" | "REJECTED". A post by a full admin
+  // (Owner/RM) publishes immediately with no review step. A partner's post
+  // starts (and any resubmission after a rejection returns to) IN_REVIEW
+  // until a full admin approves or rejects it. Default here is PUBLISHED so
+  // posts that existed before this field was added stay visible as-is.
+  status     String  @default("PUBLISHED")
+  // Set by a full admin when rejecting an IN_REVIEW post, so the author
+  // knows what to fix before resubmitting.
+  reviewNote String?
+
+  bookmarks InsightBookmark[]
+}
+
+// A saved reply snippet admins can drop into a message thread instead of
+// typing the same thing out each time. Shared across all admins/partners —
+// not scoped to whoever created it.
+model CannedResponse {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A member saving a post for later. One row per (member, post).
+model InsightBookmark {
+  id        String      @id @default(cuid())
+  memberId  String
+  member    User        @relation(fields: [memberId], references: [id])
+  postId    String
+  post      InsightPost @relation(fields: [postId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@unique([memberId, postId])
+}
+

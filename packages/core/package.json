@@ -1,0 +1,15 @@
+{
+  "name": "@prequate/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@prequate/db": "*",
+    "nodemailer": "^10.0.1"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
+    "typescript": "^5.5.0"
+  }
+}
