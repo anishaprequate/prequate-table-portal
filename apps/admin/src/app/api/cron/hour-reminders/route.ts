@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@prequate/db";
-import { mailer } from "@prequate/core";
+import { mailer, emailTemplates } from "@prequate/core";
 import { formatSlot } from "@/lib/format";
 
 // Meant to be hit daily (or more often) by a real scheduler in production
@@ -36,11 +36,11 @@ export async function GET(request: Request) {
       continue;
     }
 
-    await mailer.sendEmail({
-      to: booking.member.email,
-      subject: "Your Hour session is tomorrow",
-      text: `A reminder that your Hour with ${booking.partner.name} is scheduled for ${formatSlot(booking.startTime)}.`,
+    const { subject, text } = emailTemplates.bookingReminderEmail({
+      partnerName: booking.partner.name,
+      whenLabel: formatSlot(booking.startTime),
     });
+    await mailer.sendEmail({ to: booking.member.email, subject, text });
 
     await prisma.booking.update({
       where: { id: booking.id },

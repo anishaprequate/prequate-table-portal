@@ -3,9 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
-import { googleCalendar } from "@prequate/core";
+import { googleCalendar, mailer, emailTemplates } from "@prequate/core";
 import { getCurrentUser } from "@/lib/session";
 import { findBookingInMonth, formatMonthLabel } from "@/lib/monthly-cap";
+import { formatSlot } from "@/lib/format";
 
 export async function createBooking(formData: FormData) {
   const user = await getCurrentUser();
@@ -55,6 +56,15 @@ export async function createBooking(formData: FormData) {
     },
   });
 
+  if (user.email) {
+    const { subject, text } = emailTemplates.bookingConfirmedEmail({
+      partnerName: partner.name,
+      whenLabel: formatSlot(startTime),
+      memberContext,
+    });
+    await mailer.sendEmail({ to: user.email, subject, text });
+  }
+
   revalidatePath("/the-hour");
   redirect(`/the-hour?confirmed=1`);
 }
@@ -75,7 +85,7 @@ export async function cancelBooking(formData: FormData) {
 
   await prisma.booking.update({
     where: { id: bookingId },
-    data: { status: "CANCELLED" },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
   });
 
   revalidatePath("/the-hour");

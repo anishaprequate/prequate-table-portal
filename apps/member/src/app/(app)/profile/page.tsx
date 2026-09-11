@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { SeatBadge } from "@/components/seat-badge";
 
@@ -10,6 +11,12 @@ export default async function ProfilePage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const interests = await prisma.memberInterest.findMany({
+    where: { memberId: user.id },
+    include: { category: true },
+    orderBy: { category: { sortOrder: "asc" } },
+  });
 
   const [firstName, ...rest] = user.name.split(" ");
   const lastName = rest.join(" ");
@@ -22,7 +29,6 @@ export default async function ProfilePage({
 
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="flex items-center gap-5">
-          <SeatBadge seatNumber={user.seatNumber} />
           {user.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -41,19 +47,22 @@ export default async function ProfilePage({
           </h1>
         </div>
 
-        {user.linkedinUrl && (
-          <a
-            href={user.linkedinUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Your LinkedIn"
-            className="mt-3 flex-shrink-0 text-grey transition hover:text-ink"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.15 1.45-2.15 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.25 2.36 4.25 5.44v6.3zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z" />
-            </svg>
-          </a>
-        )}
+        <div className="flex flex-shrink-0 flex-col items-center gap-2">
+          {user.linkedinUrl && (
+            <a
+              href={user.linkedinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Your LinkedIn"
+              className="text-grey transition hover:text-ink"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.15 1.45-2.15 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.25 2.36 4.25 5.44v6.3zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z" />
+              </svg>
+            </a>
+          )}
+          <SeatBadge seatNumber={user.seatNumber} />
+        </div>
       </div>
 
       <dl className="mb-10 flex flex-col gap-5">
@@ -68,6 +77,25 @@ export default async function ProfilePage({
         <div>
           <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Bio</dt>
           <dd className="whitespace-pre-wrap text-sm">{user.longBio ?? user.bio ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Interests</dt>
+          <dd className="text-sm">
+            {interests.length === 0 ? (
+              "—"
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {interests.map((i) => (
+                  <span
+                    key={i.id}
+                    className="rounded-full bg-orange/10 px-3 py-1 text-xs text-deep-orange"
+                  >
+                    {i.category.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </dd>
         </div>
       </dl>
 

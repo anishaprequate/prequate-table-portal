@@ -7,7 +7,7 @@ export default async function EventInviteLinkPage({ params }: { params: { token:
   if (!user) redirect("/login");
 
   const event = await prisma.event.findUnique({ where: { inviteToken: params.token } });
-  if (!event) notFound();
+  if (!event || event.archivedAt) notFound();
 
   await prisma.eventAttendance.upsert({
     where: { eventId_memberId: { eventId: event.id, memberId: user.id } },

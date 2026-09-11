@@ -31,7 +31,7 @@ export async function adminCancelBooking(formData: FormData) {
     await googleCalendar.cancelCalendarEvent(booking.googleCalendarEventId);
   }
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
+  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
 
   revalidatePath("/bookings");
   redirect("/bookings");

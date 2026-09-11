@@ -24,6 +24,14 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
     where: { memberId_postId: { memberId: user.id, postId: post.id } },
   });
 
+  // Counts once per member per post — a no-op update if this member has
+  // already opened it before, so re-reading never inflates the count.
+  await prisma.insightView.upsert({
+    where: { memberId_postId: { memberId: user.id, postId: post.id } },
+    create: { memberId: user.id, postId: post.id },
+    update: {},
+  });
+
   const readMinutes = estimateReadTime(post.body);
   const tags: string[] = post.tags ? JSON.parse(post.tags) : [];
 

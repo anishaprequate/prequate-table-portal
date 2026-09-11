@@ -16,7 +16,7 @@ export default async function InsightPage({
   const fullAdmin = isFullAdmin(admin.role);
 
   const posts = await prisma.insightPost.findMany({
-    include: { author: true },
+    include: { author: true, _count: { select: { views: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -87,7 +87,8 @@ export default async function InsightPage({
                 </p>
                 {post.subheading && <p className="mt-1 text-sm text-grey">{post.subheading}</p>}
                 <p className="text-xs text-grey">
-                  {post.author.name} · {formatDateOnly(post.createdAt)}
+                  {post.author.name} · {formatDateOnly(post.createdAt)} · {post._count.views} view
+                  {post._count.views === 1 ? "" : "s"}
                 </p>
               </Link>
             </li>

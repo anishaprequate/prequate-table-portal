@@ -50,6 +50,13 @@ export function canWrite(role: string): boolean {
   return role !== "ADMIN_ASSOCIATE";
 }
 
+// Reports is the one deliberate exception to partners otherwise only
+// seeing their own calendar, Insight, and Messages — they get read access
+// to this specific view alongside the full-admin roles.
+export function canViewReports(role: string): boolean {
+  return canView(role) || role === "PARTNER";
+}
+
 export async function destroyAdminSession() {
   const sessionId = cookies().get(COOKIE_NAME)?.value;
   if (sessionId) {

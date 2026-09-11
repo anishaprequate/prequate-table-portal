@@ -16,15 +16,20 @@ export default async function ConciergePage() {
   });
 
   const now = new Date();
+  const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
   const isOpen = (status: string) => status !== "FULFILLED" && status !== "DECLINED";
   const isOverdue = (r: (typeof requests)[number]) => isOpen(r.status) && r.dueAt !== null && r.dueAt < now;
+  const isApproaching = (r: (typeof requests)[number]) =>
+    isOpen(r.status) && r.dueAt !== null && r.dueAt >= now && r.dueAt.getTime() - now.getTime() <= FOUR_HOURS_MS;
 
+  // Overdue (oldest first), then approaching — due within 4 hours (soonest
+  // first), then everything else — including closed requests and open ones
+  // with a due date that isn't imminent — by creation date, newest first.
   const sorted = [...requests].sort((a, b) => {
     const rank = (r: (typeof requests)[number]) => {
       if (isOverdue(r)) return 0;
-      if (isOpen(r.status) && r.dueAt) return 1;
-      if (isOpen(r.status)) return 2;
-      return 3;
+      if (isApproaching(r)) return 1;
+      return 2;
     };
     const rankDiff = rank(a) - rank(b);
     if (rankDiff !== 0) return rankDiff;

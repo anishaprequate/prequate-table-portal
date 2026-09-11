@@ -9,6 +9,7 @@ import {
   summarizePointsChange,
   summarizeProfileChanges,
   summarizeToggleChange,
+  googleCalendar,
   MEMBER_LIFECYCLE_STATUSES,
   type MemberLifecycleStatus,
 } from "@prequate/core";
@@ -16,6 +17,8 @@ import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 
 // "points" is deliberately excluded here — it gets its own summarizer
 // (summarizePointsChange) so the log always states the delta explicitly.
+// "chipUid" is excluded too — it's managed by the dedicated Provision/
+// Deactivate card actions below, which log their own specific audit entry.
 const PROFILE_DIFF_FIELDS = [
   "name",
   "seatType",
@@ -25,7 +28,6 @@ const PROFILE_DIFF_FIELDS = [
   "bio",
   "longBio",
   "linkedinUrl",
-  "chipUid",
   "sector",
   "archetype",
 ];
@@ -238,7 +240,6 @@ export async function adminUpdateMember(formData: FormData) {
   const directoryOptOut = formData.get("showInDirectory") !== "on";
   const pointsRaw = Number(formData.get("points"));
   const points = Number.isFinite(pointsRaw) ? Math.max(0, Math.trunc(pointsRaw)) : 0;
-  const chipUid = String(formData.get("chipUid") ?? "").trim();
   const sector = String(formData.get("sector") ?? "").trim();
   const archetype = String(formData.get("archetype") ?? "").trim();
   const lifecycleStatus = parseLifecycleStatus(formData.get("lifecycleStatus"));
@@ -253,7 +254,6 @@ export async function adminUpdateMember(formData: FormData) {
     longBio: longBio || null,
     linkedinUrl: linkedinUrl || null,
     points,
-    chipUid: chipUid || null,
     sector: sector || null,
     archetype: archetype || null,
   };
@@ -262,6 +262,14 @@ export async function adminUpdateMember(formData: FormData) {
     where: { id },
     data: { ...after, directoryOptOut, lifecycleStatus },
   });
+
+  if (after.email !== before.email) {
+    await googleCalendar.syncMemberEmailOnCalendarEvents({
+      memberId: id,
+      memberName: after.name,
+      memberEmail: after.email,
+    });
+  }
 
   const statusNote = summarizeLifecycleChange(
     before.lifecycleStatus as MemberLifecycleStatus,
@@ -293,10 +301,63 @@ export async function addMemberNote(formData: FormData) {
 
   const memberId = String(formData.get("memberId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) redirect(`/members/${memberId}`);
+  if (!body) redirect(`/members/${memberId}/timeline`);
 
   await logTimelineEntry({ memberId, authorId: admin.id, type: "NOTE", body });
 
-  revalidatePath(`/members/${memberId}`);
-  redirect(`/members/${memberId}`);
+  revalidatePath(`/members/${memberId}/timeline`);
+  redirect(`/members/${memberId}/timeline`);
+}
+
+// One member has exactly one active card at a time — provisioning a new
+// one automatically deactivates whatever card they had before.
+export async function provisionCard(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/login");
+  if (!isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const memberId = String(formData.get("memberId") ?? "");
+  const uid = String(formData.get("uid") ?? "").trim();
+  if (!uid) redirect(`/members/${memberId}/activity?error=missing-uid`);
+
+  const member = await prisma.user.findUnique({ where: { id: memberId } });
+  if (!member) redirect("/members");
+
+  const heldByOther = await prisma.user.findFirst({ where: { chipUid: uid, id: { not: memberId } } });
+  if (heldByOther) redirect(`/members/${memberId}/activity?error=uid-taken`);
+
+  const previousUid = member.chipUid;
+  await prisma.user.update({ where: { id: memberId }, data: { chipUid: uid } });
+
+  const notes = previousUid
+    ? [`Card ${previousUid} deactivated.`, `Card ${uid} provisioned.`]
+    : [`Card ${uid} provisioned.`];
+  await logTimelineEntry({ memberId, authorId: admin.id, type: "SYSTEM", body: notes.join(" ") });
+
+  revalidatePath(`/members/${memberId}/activity`);
+  redirect(`/members/${memberId}/activity?saved=1`);
+}
+
+export async function deactivateCard(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/login");
+  if (!isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const memberId = String(formData.get("memberId") ?? "");
+  const member = await prisma.user.findUnique({ where: { id: memberId } });
+  if (!member) redirect("/members");
+
+  await prisma.user.update({ where: { id: memberId }, data: { chipUid: null } });
+
+  if (member.chipUid) {
+    await logTimelineEntry({
+      memberId,
+      authorId: admin.id,
+      type: "SYSTEM",
+      body: `Card ${member.chipUid} deactivated.`,
+    });
+  }
+
+  revalidatePath(`/members/${memberId}/activity`);
+  redirect(`/members/${memberId}/activity?saved=1`);
 }

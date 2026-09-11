@@ -6,7 +6,7 @@ export function SeatBadge({ seatNumber }: { seatNumber: string | null | undefine
 
   return (
     <div className="flex flex-col items-center leading-none">
-      <span className="font-display text-5xl italic text-deep-orange">{display}</span>
+      <span className="font-display text-5xl not-italic text-deep-orange">{display}</span>
       <span className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.28em] text-grey">Seat</span>
     </div>
   );

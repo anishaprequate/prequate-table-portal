@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 import { createEvent } from "@/lib/actions/events";
-import { EVENT_TIER_LABELS, type EventTier } from "@prequate/core";
 import { BackLink } from "@/components/back-link";
 import { NumberField } from "@/components/number-field";
 import { PageHero } from "@/components/page-hero";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { EventTierFields } from "@/components/event-tier-fields";
 
 export default async function NewEventPage({
   searchParams,
@@ -77,20 +77,7 @@ export default async function NewEventPage({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5 text-sm">
-            Tier
-            <select
-              name="tier"
-              defaultValue="DINNER"
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            >
-              {(Object.keys(EVENT_TIER_LABELS) as EventTier[]).map((tier) => (
-                <option key={tier} value={tier}>
-                  {EVENT_TIER_LABELS[tier]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <EventTierFields defaultTier="DINNER" />
           <label className="flex flex-col gap-1.5 text-sm">
             Capacity
             <NumberField

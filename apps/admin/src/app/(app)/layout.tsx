@@ -8,13 +8,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!admin) redirect("/login");
 
   const fullAdmin = canView(admin.role);
-  const unreadMessages = await prisma.message.count({
-    where: {
-      senderRole: "MEMBER",
-      read: false,
-      partnerId: fullAdmin ? null : admin.id,
-    },
-  });
+  const [unreadMessages, unreadNotifications] = await Promise.all([
+    prisma.message.count({
+      where: {
+        senderRole: "MEMBER",
+        read: false,
+        partnerId: fullAdmin ? null : admin.id,
+      },
+    }),
+    prisma.notification.count({ where: { recipientId: admin.id, readAt: null } }),
+  ]);
 
   return (
     <NavShell
@@ -23,6 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       isOwner={admin.role === "ADMIN_OWNER"}
       readOnly={!canWrite(admin.role)}
       unreadMessages={unreadMessages}
+      unreadNotifications={unreadNotifications}
     >
       {children}
     </NavShell>

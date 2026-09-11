@@ -26,7 +26,22 @@ export default async function TheHourPage({
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   const past = bookings.filter((b) => b.startTime < now || b.status === "CANCELLED");
 
-  const currentMonthBooking = await findBookingInMonth(user.id, now);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const [currentMonthBooking, nextMonthBooking] = await Promise.all([
+    findBookingInMonth(user.id, now),
+    findBookingInMonth(user.id, nextMonthStart),
+  ]);
+
+  // Book a session always stays available as long as either month still
+  // has room — it just skips straight to whichever month is still open,
+  // or asks which one when both are.
+  const bookHref = currentMonthBooking && nextMonthBooking
+    ? null
+    : currentMonthBooking
+      ? "/the-hour/book?month=1"
+      : nextMonthBooking
+        ? "/the-hour/book?month=0"
+        : "/the-hour/book/month";
 
   return (
     <div className="max-w-2xl">
@@ -38,17 +53,17 @@ export default async function TheHourPage({
 
       <div className="mb-10 flex items-start justify-between gap-6">
         <PageHero title="The" accent="Hour." subtitle="Time with a partner, on your terms." />
-        {currentMonthBooking ? (
-          <p className="flex-shrink-0 text-sm text-grey">
-            You've booked your Hour for {formatMonthLabel(now)}.
-          </p>
-        ) : (
+        {bookHref ? (
           <Link
-            href="/the-hour/book"
+            href={bookHref}
             className="flex-shrink-0 rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
           >
             Book a session
           </Link>
+        ) : (
+          <p className="flex-shrink-0 text-sm text-grey">
+            You've booked your Hour for {formatMonthLabel(now)} and {formatMonthLabel(nextMonthStart)}.
+          </p>
         )}
       </div>
 

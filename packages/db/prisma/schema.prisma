@@ -46,9 +46,20 @@ model User {
   sector    String?
   archetype String?
 
+  interests MemberInterest[]
+
   // Last time this member completed a login. Distinct from firstLoginAt —
   // used to surface "last used the app" on the admin member profile.
   lastActiveAt DateTime?
+
+  // Dedup state for the daily inactivity cadence job (see
+  // /api/cron/member-inactivity): when it flags a 60-day gap, it records
+  // both when it flagged and what the member's last-touch date was at that
+  // moment. It only flags again once a fresh touch after that moment is
+  // followed by a new 60-day gap — never just because the same old gap is
+  // still open.
+  lastInactivityNotifiedAt    DateTime?
+  lastInactivityNotifiedTouch DateTime?
 
   // LifecycleStatus: "PROSPECT" | "ACTIVE" | "AT_RISK" | "PAUSED" | "ALUMNI"
   // Only meaningful for role "MEMBER". Existing members default to ACTIVE;
@@ -88,6 +99,34 @@ model User {
   introductionsRequested    IntroductionRequest[]      @relation("IntroductionRequester")
   introductionsReceived     IntroductionRequest[]      @relation("IntroductionTarget")
   insightBookmarks          InsightBookmark[]
+  insightViews              InsightView[]
+  notifications             Notification[]
+  eventBlastsSent           EventBlast[]
+  eventPhotosUploaded       EventPhoto[]
+}
+
+// A fixed (but admin-editable) taxonomy of interest categories a member can
+// select on their Profile — not freeform tags like `sector`/`archetype`.
+// Seeded with ten starter categories; an owner or RM can add, rename, or
+// remove categories later via Admin, so this list is data, not an enum.
+model InterestCategory {
+  id        String   @id @default(cuid())
+  label     String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  members MemberInterest[]
+}
+
+model MemberInterest {
+  id         String           @id @default(cuid())
+  memberId   String
+  member     User             @relation(fields: [memberId], references: [id])
+  categoryId String
+  category   InterestCategory @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime         @default(now())
+
+  @@unique([memberId, categoryId])
 }
 
 // A member asking Prequate to broker an introduction to another member,
@@ -165,6 +204,12 @@ model OtpCode {
   userId     String
   user       User      @relation(fields: [userId], references: [id])
   code       String
+  // Channel: "phone" | "email" — same shape (a token tied to a user, with
+  // an expiry and single-use consumption) serves both the phone OTP flow
+  // (a short numeric code) and the email magic-link flow (a long opaque
+  // token embedded in the link itself). Kept as one table rather than two
+  // near-identical ones; channel exists so a lookup can't cross flows.
+  channel    String    @default("phone")
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
@@ -206,6 +251,17 @@ model Booking {
   // booking, so the cron job (see apps/admin/src/app/api/cron) never
   // sends it twice.
   reminderSentAt DateTime?
+
+  // Set when status becomes "CANCELLED" — used to distinguish a late
+  // cancellation (cancelled less than 24 hours before startTime) from a
+  // normal one.
+  cancelledAt DateTime?
+
+  // Set when the member taps their NFC card at the start of this session —
+  // an automatic alternative to an admin marking attendance by hand. Purely
+  // a check-in marker, independent of the final status (COMPLETED/NO_SHOW)
+  // an admin still sets afterward.
+  checkedInAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -275,8 +331,68 @@ model Event {
   // can generate and forward directly, instead of hand-picking names.
   inviteToken String? @unique
 
+  // Annual Gathering-only fields (tier = "ANNUAL"), shown in the admin form
+  // only when that tier is selected — kept on the same Event object rather
+  // than a separate module, per the build note.
+  sponsorName     String?
+  sponsorLogoUrl  String?
+  // JSON-encoded array of { name, email } for guests beyond the membership
+  // — not tied to a Member record. Same parse/stringify-at-the-boundary
+  // convention as elsewhere in this schema (see ConciergeCategory.examples).
+  externalGuests  String?
+
+  // Soft-delete: deleting an event archives it instead of removing the
+  // row, so it stays viewable (and restorable) rather than vanishing —
+  // members never see an archived event, and it's excluded from the Live
+  // and Draft tabs in Admin > Events, appearing only in Archive.
+  archivedAt DateTime?
+
+  // Cancelled is its own state, distinct from archived — the event isn't
+  // happening, but (unlike an archived/deleted event) members who already
+  // RSVP'd can still open it and see that it's cancelled. History (who'd
+  // RSVP'd, who attended if it already happened) is preserved either way.
+  // Also shown in the Archive tab, alongside archived events, but with its
+  // own "Cancelled" label rather than "Archived".
+  cancelledAt        DateTime?
+  cancellationReason String?
+
   attendances EventAttendance[]
   ticketTypes EventTicketType[]
+  blasts      EventBlast[]
+  photos      EventPhoto[]
+}
+
+// Admin-uploaded only — no member upload path. Visible only to members who
+// attended (joined) this specific event, the same rule already used for
+// the attendee list. thumbnailUrl is null when a thumbnail couldn't be
+// generated (e.g. a HEIC file this environment's image library can't
+// decode) — the gallery falls back to the original in that case.
+model EventPhoto {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id])
+  url          String
+  thumbnailUrl String?
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+// A record of one "message all registrants" send from Admin > Events >
+// Blasts — kept separate from the per-recipient Message rows it fans out to,
+// so admins can see the send itself (who sent it, when, to how many) as a
+// single entry rather than reconstructing it from the messages table.
+model EventBlast {
+  id              String   @id @default(cuid())
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id])
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+  body            String
+  includeWaitlist Boolean  @default(false)
+  recipientCount  Int
+  createdAt       DateTime @default(now())
 }
 
 // A named registration tier for an event (e.g. "General", "VIP"). Optional —
@@ -349,6 +465,16 @@ model EventAttendance {
   // elsewhere in this schema (see ConciergeCategory.examples).
   guestNames String?
 
+  // Post-event survey — sent 24 hours after the event ends to confirmed
+  // (joined) attendees, one reminder at 3 days if unanswered, then no
+  // further nagging (see the /api/cron/event-surveys job). surveyRating is
+  // the required 1-5 question; surveyFeedback is the optional free-text one.
+  surveySentAt         DateTime?
+  surveyReminderSentAt DateTime?
+  surveyRating         Int?
+  surveyFeedback       String?
+  surveyRespondedAt    DateTime?
+
   createdAt DateTime @default(now())
 
   @@unique([eventId, memberId])
@@ -394,6 +520,10 @@ model ConciergeRequest {
   // Computed at submission from the category's slaDays. Null if the
   // category had no SLA set at the time this request was made.
   dueAt            DateTime?
+  // Set when this request was opened via a fixed NFC location tap point
+  // (a plaque at the Table or a lounge) rather than the normal Concierge
+  // flow — notes where the tap happened, e.g. "Lounge".
+  locationContext  String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 }
@@ -417,6 +547,24 @@ model Message {
   // sent. Drives the unread badges in both apps' nav and inbox list.
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
+}
+
+// The minimal in-app notification system. Seeded with every trigger type
+// this pipeline's later stages will need, even though only "new_message"
+// actually fires yet — that way adding a new trigger later is a new call
+// site, not a schema change.
+model Notification {
+  id              String    @id @default(cuid())
+  recipientId     String
+  recipient       User      @relation(fields: [recipientId], references: [id])
+  // Type: "new_message" | "event_cancelled" | "member_inactive" |
+  // "concierge_sla_breach" | "intro_request" | "event_survey"
+  type            String
+  message         String
+  relatedEntityType String?
+  relatedEntityId   String?
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
 }
 
 // A partner or admin's written note: a title, a one-line subheading, an
@@ -448,21 +596,42 @@ model InsightPost {
   reviewNote String?
 
   bookmarks InsightBookmark[]
+  views     InsightView[]
 }
 
-// A saved reply snippet admins can drop into a message thread instead of
-// typing the same thing out each time. Shared across all admins/partners —
-// not scoped to whoever created it.
+// A saved reply snippet that can be dropped into a message thread instead
+// of typing the same thing out each time.
 model CannedResponse {
   id        String   @id @default(cuid())
   title     String
   body      String
+
+  // Audience: "ADMIN" | "PARTNER". RM and Owner share one ADMIN set,
+  // editable by either. Partners get their own separate PARTNER set —
+  // they only see their own member threads and their use case differs.
+  // Not scoped to whoever created it beyond that split.
+  audience String @default("ADMIN")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // A member saving a post for later. One row per (member, post).
 model InsightBookmark {
+  id        String      @id @default(cuid())
+  memberId  String
+  member    User        @relation(fields: [memberId], references: [id])
+  postId    String
+  post      InsightPost @relation(fields: [postId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@unique([memberId, postId])
+}
+
+// One row per (member, post) the first time that member opens a post —
+// the view count is this table's row count per post, not a page-load
+// counter, so re-reading the same post never inflates it.
+model InsightView {
   id        String      @id @default(cuid())
   memberId  String
   member    User        @relation(fields: [memberId], references: [id])

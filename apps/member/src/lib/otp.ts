@@ -4,6 +4,7 @@
 // before production.
 
 const OTP_TTL_MINUTES = 10;
+const MAGIC_LINK_TTL_MINUTES = 15;
 
 export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -11,4 +12,8 @@ export function generateOtpCode(): string {
 
 export function otpExpiry(): Date {
   return new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+}
+
+export function magicLinkExpiry(): Date {
+  return new Date(Date.now() + MAGIC_LINK_TTL_MINUTES * 60_000);
 }

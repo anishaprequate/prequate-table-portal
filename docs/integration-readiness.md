@@ -19,18 +19,21 @@ This prototype stands in for several real integrations with mock or stub version
 2. Build out `getAttendees` for real — there is currently no attendee-sync logic anywhere, since the mock always returns nothing. Decide how a Luma RSVP becomes an `EventAttendance` row here (create on RSVP, reconcile on a schedule, etc.).
 3. Everything downstream (the events list, publish flow) should keep working unchanged, since it was built against the mock's types on purpose.
 
-## NFC tap-in (member login)
+## NFC card (login, check-in, tap-to-connect)
 
-**Where it lives:** `apps/member/src/app/login/tap/page.tsx`, `apps/member/src/lib/actions/auth.ts` (`simulateTap`), `User.chipUid` in the schema.
+**Where it lives:** `apps/member/src/app/login/nfc/[uid]/page.tsx` (login), `apps/admin/src/components/checkin-kiosk.tsx` + `apps/admin/src/app/api/nfc/{tap,connect}/route.ts` (check-in and tap-to-connect), `apps/admin/src/lib/actions/members.ts` (`provisionCard`, `deactivateCard`), `User.chipUid` in the schema.
 
-**What's real:** everything past the point of knowing which chip was tapped. `simulateTap` looks up a member by `chipUid`, creates a real session, and redirects to `/home` or the first-arrival screen. That logic doesn't need to change.
+**What's real:** the whole logic layer. `chipUid` is UID-bound (an admin provisions a card against a member from their profile page, which also deactivates whatever card they had before and logs both to the timeline). `/login/nfc/[uid]` is a real URL-based login — exactly what a physical card's NDEF URL tag would open — that looks up the member by UID, creates a session, and shows the exact "card not linked" error copy from the build note if the UID isn't bound to anyone. `checkin-kiosk.tsx` uses the real Web NFC API (`NDEFReader`) when the browser supports it (Android Chrome only, by design), calling a real API route that marks event or Hour attendance and writes an audit entry. Tap-to-connect (two different members' cards tapped within 30 seconds) creates a real `IntroductionRequest`, tracked client-side by the kiosk page.
 
-**What's faked:** how `chipUid` gets known in the first place. The tap page is a dropdown of every member's name/seat, with a "Simulate tap" button — there is no actual NFC hardware read anywhere. `chipUid` itself is described in the schema as "a stand-in value," and an admin can currently set it by hand from a member's profile, with a note that it won't match a physical chip until that chip is actually provisioned.
+**What's still faked, and needs real hardware to verify:** everything above has never touched an actual NFC chip — there are no physical cards yet. Specifically:
+- The dev-only `/login/tap` dropdown still exists for testing without hardware; it now just redirects into the same real `/login/nfc/[uid]` page rather than duplicating login logic, so it's a thin shim, not a parallel system.
+- The check-in kiosk's manual UID text field is the only way to exercise it without a real tablet + reader.
+- `provisionCard` takes a UID typed or pasted into a form field — the doc's "tap a new card against your phone" flow assumes a phone-side NDEFReader read auto-fills that field, which isn't wired up (would need the same Web NFC read used by the kiosk, added to the provisioning form).
 
 **To go live:**
-1. Wire up a real NFC read (native app / Web NFC API / a physical reader with its own webhook) that resolves a tapped chip to a `chipUid` value.
-2. Call the same lookup-and-session logic `simulateTap` already has, passing in the real `chipUid` instead of a value picked from a dropdown.
-3. Provisioning: someone needs a real process for writing a member's `chipUid` onto their physical plate's chip, separate from just typing it into the admin form.
+1. Order NTAG213/215 cards from a vendor (Seritag, GoToTags, NFC Direct), encoded as NDEF URL tags pointing to `https://<memberapp-domain>/login/nfc/<uid-placeholder>` — actually, since the UID itself is what's read (not baked into the tag's URL), what needs encoding is a URL the card's own hardware serial resolves through Web NFC's `serialNumber`, matched at provisioning time. Confirm the exact vendor encoding options support this before ordering at scale.
+2. Get an Android tablet for the door kiosk and confirm Chrome's Web NFC permission flow in practice (it prompts per-origin, per session).
+3. Test the whole loop with one real card before ordering the full batch: provision it, log in with it, check into a real event, check into a real Hour session, tap it against a second card to confirm tap-to-connect.
 
 ## SMS OTP (phone login fallback)
 
@@ -59,3 +62,17 @@ This prototype stands in for several real integrations with mock or stub version
 1. Generate a Google app password for `anisha@prequate.one` and set `SMTP_APP_PASSWORD` in `apps/admin/.env.local`.
 2. Point a real scheduler at `https://<admin-domain>/api/cron/hour-reminders?secret=<CRON_SECRET>`, running at least daily (hourly is safer, since the window is 23-25 hours and a daily miss could land outside it) — Vercel Cron if hosted there, otherwise any crontab that can hit a URL.
 3. Rotate `CRON_SECRET` to a fresh value for production rather than reusing the prototype's.
+
+## Post-event survey and member-inactivity cadence
+
+**Where they live:** `apps/admin/src/app/api/cron/event-surveys/route.ts`, `apps/admin/src/app/api/cron/member-inactivity/route.ts`, `apps/admin/src/lib/member-inactivity.ts` (the shared last-touch calculation both this job and the Reports "60-day inactive" table use).
+
+**What's real:** the same pattern as Hour reminders — a plain authenticated GET (`?secret=` must match `CRON_SECRET`, the same secret as the other cron routes), meant to be hit by something external, no scheduler wired up. Both jobs are otherwise complete: `event-surveys` finds attendees whose event ended 23-25 hours ago and sends the two-question survey (`Notification` + real email via the same `mailer`), then finds anyone who hasn't answered 71-75 hours after that first send and sends exactly one reminder (`EventAttendance.surveyReminderSentAt` gates it, so it never repeats). `member-inactivity` finds every member whose `lifecycleStatus` is `ACTIVE` or `AT_RISK` with a 60+ day gap since their last touch, notifies every `ADMIN_RM` (falling back to `ADMIN_OWNER` if none exist), and records `User.lastInactivityNotifiedAt`/`lastInactivityNotifiedTouch` so the same open gap is never re-flagged — only a fresh touch followed by a new 60-day gap notifies again.
+
+**What's faked:** nothing in the logic — same "no scheduler" gap as Hour reminders, and the same console-log email fallback if `SMTP_APP_PASSWORD` is blank.
+
+**A real gap, not a prototype shortcut:** pipeline 1 Stage 1's member lifecycle enum is `PROSPECT` / `ACTIVE` / `AT_RISK` / `PAUSED` / `ALUMNI` — there is no `RENEWAL_DUE` value, even though the cadence brief names `active`, `at_risk`, and `renewal_due` as the three statuses to watch. `member-inactivity` checks `ACTIVE` and `AT_RISK` only. Adding a real renewal-due status (and whatever workflow should set it) is upstream of this job, not something to guess at here.
+
+**To go live:**
+1. Point a real scheduler at both routes, daily, same `CRON_SECRET` as Hour reminders — `https://<admin-domain>/api/cron/event-surveys?secret=<CRON_SECRET>` and `.../api/cron/member-inactivity?secret=<CRON_SECRET>`.
+2. Decide on a `RENEWAL_DUE` lifecycle status (or an equivalent signal) if renewal-stage members should also be watched for inactivity.

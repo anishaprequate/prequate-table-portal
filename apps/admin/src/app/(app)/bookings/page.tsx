@@ -24,16 +24,63 @@ export default async function BookingsPage() {
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   const past = bookings.filter((b) => b.startTime < now || b.status === "CANCELLED");
 
+  // Per partner, last 90 days — a simple watch list, not a full report
+  // (the fuller reporting dashboard is its own later stage).
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const LATE_CANCELLATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const partnerStats = viewAll
+    ? Object.values(
+        bookings.reduce<Record<string, { name: string; noShows: number; lateCancellations: number }>>(
+          (acc, b) => {
+            if (b.startTime < ninetyDaysAgo) return acc;
+            acc[b.partnerId] ??= { name: b.partner.name, noShows: 0, lateCancellations: 0 };
+            if (b.status === "NO_SHOW") acc[b.partnerId].noShows++;
+            if (b.status === "CANCELLED" && b.cancelledAt && b.startTime.getTime() - b.cancelledAt.getTime() < LATE_CANCELLATION_WINDOW_MS) {
+              acc[b.partnerId].lateCancellations++;
+            }
+            return acc;
+          },
+          {},
+        ),
+      ).filter((p) => p.noShows > 0 || p.lateCancellations > 0)
+    : [];
+
   return (
     <div className="max-w-3xl">
-      <PageHero
-        title={viewAll ? "Bookings" : "My bookings"}
-        subtitle={
-          viewAll
-            ? "Across every partner's calendar."
-            : "Sessions on your calendar, with what each member shared."
-        }
-      />
+      <div className="flex items-start justify-between gap-6">
+        <PageHero
+          title={viewAll ? "Bookings" : "My bookings"}
+          subtitle={
+            viewAll
+              ? "Across every partner's calendar."
+              : "Sessions on your calendar, with what each member shared."
+          }
+        />
+        {viewAll && (
+          <Link
+            href="/checkin/hour"
+            className="mt-2 flex-shrink-0 rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
+          >
+            Check in
+          </Link>
+        )}
+      </div>
+
+      {partnerStats.length > 0 && (
+        <div className="mb-10 rounded-md border border-grey/20 p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-grey">
+            No-shows and late cancellations by partner (last 90 days)
+          </p>
+          <ul className="flex flex-col gap-1 text-sm text-grey">
+            {partnerStats.map((p) => (
+              <li key={p.name}>
+                {p.name} — {p.noShows} no-show{p.noShows === 1 ? "" : "s"}, {p.lateCancellations} late cancellation
+                {p.lateCancellations === 1 ? "" : "s"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <section className="mb-12">
         <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Upcoming</h2>

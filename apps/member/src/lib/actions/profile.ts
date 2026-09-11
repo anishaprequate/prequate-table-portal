@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@prequate/db";
-import { UPLOADS_DIR } from "@prequate/core";
+import { UPLOADS_DIR, googleCalendar } from "@prequate/core";
 import { getCurrentUser } from "@/lib/session";
 
 export async function updateProfile(formData: FormData) {
@@ -16,6 +16,7 @@ export async function updateProfile(formData: FormData) {
   const seatType = String(formData.get("seatType") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
+  const interestIds = formData.getAll("interests").map(String);
 
   let photoUrl: string | undefined;
   const photo = formData.get("photo");
@@ -28,16 +29,39 @@ export async function updateProfile(formData: FormData) {
     photoUrl = `/api/briefs/${storedName}`;
   }
 
+  const newEmail = email || null;
+
   await prisma.user.update({
     where: { id: user.id },
     data: {
       name: name || user.name,
       seatType: seatType || null,
-      email: email || null,
+      email: newEmail,
       bio: bio || null,
       ...(photoUrl ? { photoUrl } : {}),
     },
   });
+
+  if (newEmail !== user.email) {
+    await googleCalendar.syncMemberEmailOnCalendarEvents({
+      memberId: user.id,
+      memberName: name || user.name,
+      memberEmail: newEmail,
+    });
+  }
+
+  await prisma.memberInterest.deleteMany({
+    where: { memberId: user.id, categoryId: { notIn: interestIds } },
+  });
+  await Promise.all(
+    interestIds.map((categoryId) =>
+      prisma.memberInterest.upsert({
+        where: { memberId_categoryId: { memberId: user.id, categoryId } },
+        update: {},
+        create: { memberId: user.id, categoryId },
+      }),
+    ),
+  );
 
   revalidatePath("/profile");
   revalidatePath("/directory");

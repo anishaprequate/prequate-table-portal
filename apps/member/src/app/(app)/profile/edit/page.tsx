@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { updateProfile } from "@/lib/actions/profile";
 import { BackLink } from "@/components/back-link";
@@ -7,6 +8,12 @@ import { formatSeatDisplay } from "@/lib/format";
 export default async function EditProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const [categories, myInterests] = await Promise.all([
+    prisma.interestCategory.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.memberInterest.findMany({ where: { memberId: user.id }, select: { categoryId: true } }),
+  ]);
+  const myInterestIds = new Set(myInterests.map((i) => i.categoryId));
 
   return (
     <div className="max-w-md">
@@ -75,6 +82,27 @@ export default async function EditProfilePage() {
             className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
           />
         </label>
+
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <legend className="mb-1">Interests</legend>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <label
+                key={category.id}
+                className="flex items-center gap-2 rounded-md border border-grey/30 px-3 py-1.5 text-sm text-ink has-[:checked]:border-orange has-[:checked]:bg-orange/10"
+              >
+                <input
+                  type="checkbox"
+                  name="interests"
+                  value={category.id}
+                  defaultChecked={myInterestIds.has(category.id)}
+                  className="h-3.5 w-3.5 accent-orange"
+                />
+                {category.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <button
           type="submit"

@@ -6,16 +6,17 @@ import { submitConciergeRequest } from "@/lib/actions/concierge";
 import { CONCIERGE_STATUS_LABELS, type ConciergeStatus } from "@prequate/core";
 import { formatDateOnly } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
+import { ConciergeIcon } from "@/components/concierge-icon";
 
 export default async function ConciergePage({
   searchParams,
 }: {
-  searchParams: { tab?: string; submitted?: string; error?: string };
+  searchParams: { tab?: string; submitted?: string; error?: string; location?: string };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const tab = searchParams.tab === "new" ? "new" : "requests";
+  const tab = searchParams.tab === "new" || searchParams.location ? "new" : "requests";
 
   const [categories, requests] = await Promise.all([
     prisma.conciergeCategory.findMany({ orderBy: { sortOrder: "asc" } }),
@@ -109,36 +110,78 @@ export default async function ConciergePage({
           </ul>
         </div>
       ) : (
-        <form action={submitConciergeRequest} className="flex flex-col gap-6">
+        <form action={submitConciergeRequest} className="flex flex-col gap-8">
+          {searchParams.location && (
+            <input type="hidden" name="location" value={searchParams.location} />
+          )}
+
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink">
+              <svg
+                className="h-5 w-5 text-paper"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <h2 className="font-display text-2xl italic leading-tight text-ink">
+              What can we help with today?
+            </h2>
+            {searchParams.location ? (
+              <p className="mt-1 text-sm text-grey">Tapped at: {searchParams.location}</p>
+            ) : (
+              <p className="mt-1 text-sm text-grey">
+                Pick a starting point — we&apos;ll ask a couple of quick follow-ups.
+              </p>
+            )}
+          </div>
+
           {groups.map((group) => (
             <div key={group}>
-              <p className="mb-2 text-xs uppercase tracking-wide text-grey">{group}</p>
-              <div className="flex flex-col gap-2">
+              <p className="mb-3 text-xs uppercase tracking-wide text-grey">{group}</p>
+              <div className="flex flex-col gap-3">
                 {categories
                   .filter((c) => c.group === group)
                   .map((category) => {
                     const examples = JSON.parse(category.examples) as string[];
                     return (
-                      <div
-                        key={category.id}
-                        className="group rounded-md border border-grey/30 has-[:checked]:border-orange has-[:checked]:bg-orange/10"
-                      >
-                        <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
-                          <input type="checkbox" name="categoryId" value={category.id} />
+                      <div key={category.id} className="group">
+                        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-paper">
+                          <input type="checkbox" name="categoryId" value={category.id} className="hidden" />
+                          <ConciergeIcon category={category.category} className="h-3.5 w-3.5 flex-shrink-0" />
                           {category.category}
                         </label>
-                        <div className="hidden flex-col gap-1.5 border-t border-grey/15 px-3 py-2 pl-8 group-has-[:checked]:flex">
-                          <p className="text-xs text-grey">Which of these, specifically?</p>
-                          {examples.map((example) => (
-                            <label key={example} className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                name={`subitems.${category.id}`}
-                                value={example}
-                              />
-                              {example}
-                            </label>
-                          ))}
+                        <div className="hidden group-has-[:checked]:mt-3 group-has-[:checked]:block">
+                          <div className="rounded-md border border-grey/15 bg-paper p-4">
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-deep-orange">
+                              {category.category}
+                            </p>
+                            <p className="mb-3 font-display text-lg italic leading-tight text-ink">
+                              Which of these sound right?
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {examples.map((example) => (
+                                <label
+                                  key={example}
+                                  className="cursor-pointer rounded-full border border-grey/30 px-3 py-1.5 text-xs text-ink transition has-[:checked]:border-orange has-[:checked]:bg-orange/10 has-[:checked]:font-medium has-[:checked]:text-deep-orange"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    name={`subitems.${category.id}`}
+                                    value={example}
+                                    className="hidden"
+                                  />
+                                  {example}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -147,18 +190,21 @@ export default async function ConciergePage({
             </div>
           ))}
 
-          <div className="group rounded-md border border-grey/30 has-[:checked]:border-orange has-[:checked]:bg-orange/10">
-            <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
-              <input type="checkbox" name="categoryId" value="other" />
+          <div className="group">
+            <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-paper">
+              <input type="checkbox" name="categoryId" value="other" className="hidden" />
               Something else
             </label>
-            <div className="hidden flex-col gap-1.5 border-t border-grey/15 px-3 py-2 group-has-[:checked]:flex">
-              <textarea
-                name="customText"
-                rows={2}
-                placeholder="Describe what you need."
-                className="w-full rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
-              />
+            <div className="hidden group-has-[:checked]:mt-3 group-has-[:checked]:block">
+              <div className="rounded-md border border-grey/15 bg-paper p-4">
+                <p className="mb-3 font-display text-lg italic leading-tight text-ink">Tell us more</p>
+                <textarea
+                  name="customText"
+                  rows={2}
+                  placeholder="Describe what you need."
+                  className="w-full rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
+                />
+              </div>
             </div>
           </div>
 
@@ -174,9 +220,9 @@ export default async function ConciergePage({
 
           <button
             type="submit"
-            className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
+            className="w-full rounded-md bg-ink px-5 py-3 text-center text-sm font-medium text-paper transition hover:bg-ink/90"
           >
-            Send request
+            Send to concierge
           </button>
         </form>
       )}

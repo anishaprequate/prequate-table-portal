@@ -35,9 +35,14 @@ function ToolbarButton({
 export function RichTextEditor({
   name,
   initialContent,
+  onChangeHTML,
 }: {
   name: string;
   initialContent?: string;
+  // Optional, additive: fires on every edit for a live preview elsewhere on
+  // the page. Doesn't touch the hidden-input-on-submit sync above, which
+  // stays the only thing the actual form submission depends on.
+  onChangeHTML?: (html: string) => void;
 }) {
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +57,7 @@ export function RichTextEditor({
       },
     },
     immediatelyRender: false,
+    onUpdate: ({ editor }) => onChangeHTML?.(editor.getHTML()),
   });
 
   // Sync at submit time rather than on every keystroke: React 18 Strict

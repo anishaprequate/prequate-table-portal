@@ -8,9 +8,11 @@ import { PageHero } from "@/components/page-hero";
 export default async function CannedResponsesPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/login");
-  const manage = isFullAdmin(admin.role) && canWrite(admin.role);
+  const isPartner = admin.role === "PARTNER";
+  const manage = (isFullAdmin(admin.role) || isPartner) && canWrite(admin.role);
+  const audience = isPartner ? "PARTNER" : "ADMIN";
 
-  const responses = await prisma.cannedResponse.findMany({ orderBy: { title: "asc" } });
+  const responses = await prisma.cannedResponse.findMany({ where: { audience }, orderBy: { title: "asc" } });
 
   return (
     <div className="max-w-md">

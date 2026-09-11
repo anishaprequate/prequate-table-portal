@@ -36,7 +36,7 @@ export default async function EventsPage({
 
   const [events, myAttendances] = await Promise.all([
     prisma.event.findMany({
-      where: { publishedAt: { not: null } },
+      where: { publishedAt: { not: null }, archivedAt: null },
       orderBy: { startTime: "desc" },
     }),
     prisma.eventAttendance.findMany({
@@ -155,7 +155,14 @@ export default async function EventsPage({
               {upcoming.map((event) => (
                 <li key={event.id} className="py-4">
                   <Link href={`/events/${event.id}`} className="block">
-                    <p className="font-display text-xl italic leading-tight text-ink">{event.title}</p>
+                    <p className="font-display text-xl italic leading-tight text-ink">
+                      {event.title}
+                      {event.cancelledAt && (
+                        <span className="ml-2 align-middle rounded-full bg-grey/10 px-2 py-0.5 text-xs font-sans not-italic text-grey">
+                          Cancelled
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-grey">
                       {formatSlot(event.startTime)}
                       {event.location && ` · ${event.location}`}
@@ -173,7 +180,14 @@ export default async function EventsPage({
               {past.map((event) => (
                 <li key={event.id} className="py-4">
                   <Link href={`/events/${event.id}`} className="block">
-                    <p className="font-display text-xl italic leading-tight text-ink">{event.title}</p>
+                    <p className="font-display text-xl italic leading-tight text-ink">
+                      {event.title}
+                      {event.cancelledAt && (
+                        <span className="ml-2 align-middle rounded-full bg-grey/10 px-2 py-0.5 text-xs font-sans not-italic text-grey">
+                          Cancelled
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-grey">
                       {formatSlot(event.startTime)}
                       {event.location && ` · ${event.location}`}

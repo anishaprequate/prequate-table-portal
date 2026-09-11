@@ -10,7 +10,9 @@ export default async function NewCannedResponsePage({
   searchParams: { error?: string };
 }) {
   const admin = await getCurrentAdmin();
-  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/settings/canned-responses");
+  if (!admin || !(isFullAdmin(admin.role) || admin.role === "PARTNER") || !canWrite(admin.role)) {
+    redirect("/settings/canned-responses");
+  }
 
   return (
     <div className="max-w-md">

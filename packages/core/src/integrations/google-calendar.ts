@@ -25,30 +25,35 @@ export interface CalendarEventRef {
 const SLOT_DURATION_MINUTES = 45;
 const BUSINESS_HOUR_START = 10;
 const BUSINESS_HOUR_END = 17;
-const DAYS_AHEAD = 14;
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
 /**
- * Deterministic mock availability: business-hour slots for the next
- * DAYS_AHEAD days, skipping weekends. Real implementation would read the
- * partner's connected Google Calendar free/busy data.
+ * Deterministic mock availability: business-hour slots, skipping weekends,
+ * from tomorrow through the end of *next* calendar month — always exactly
+ * the current month and the immediately following one, no staggered
+ * early-open logic or day-count countdown. Real implementation would read
+ * the partner's connected Google Calendar free/busy data.
  */
 export function getPartnerAvailability(partnerId: string): CalendarSlot[] {
   const slots: CalendarSlot[] = [];
   const now = new Date();
 
-  for (let dayOffset = 1; dayOffset <= DAYS_AHEAD; dayOffset++) {
-    const day = new Date(now);
-    day.setDate(day.getDate() + dayOffset);
-    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-    if (isWeekend) continue;
+  const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 2, 1); // start of the month after next
+  const day = new Date(now);
+  day.setDate(day.getDate() + 1);
+  day.setHours(0, 0, 0, 0);
 
-    for (let hour = BUSINESS_HOUR_START; hour < BUSINESS_HOUR_END; hour++) {
-      const startTime = new Date(day);
-      startTime.setHours(hour, 0, 0, 0);
-      const endTime = new Date(startTime.getTime() + SLOT_DURATION_MINUTES * 60_000);
-      slots.push({ startTime, endTime });
+  while (day < rangeEnd) {
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    if (!isWeekend) {
+      for (let hour = BUSINESS_HOUR_START; hour < BUSINESS_HOUR_END; hour++) {
+        const startTime = new Date(day);
+        startTime.setHours(hour, 0, 0, 0);
+        const endTime = new Date(startTime.getTime() + SLOT_DURATION_MINUTES * 60_000);
+        slots.push({ startTime, endTime });
+      }
     }
+    day.setDate(day.getDate() + 1);
   }
 
   return slots;
@@ -193,6 +198,66 @@ export async function cancelCalendarEvent(googleCalendarEventId: string): Promis
       headers: { Authorization: `Bearer ${connection.accessToken}` },
     },
   );
+}
+
+async function updateEventAttendees(params: {
+  googleCalendarEventId: string;
+  attendees: { email: string; displayName?: string }[];
+}): Promise<void> {
+  const connection = await getActiveConnection();
+  if (!connection || params.googleCalendarEventId.startsWith("mock-gcal-")) return;
+
+  await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events/${params.googleCalendarEventId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${connection.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ attendees: params.attendees }),
+    },
+  );
+}
+
+// A calendar invite's attendee list is set once, at event-creation time —
+// it doesn't follow a member's record if they later change their email.
+// Call this whenever a member's email changes, so every calendar event
+// they're already an attendee on (an upcoming Hour session, an RSVP'd
+// event) gets repointed to the new address instead of silently going
+// stale. No-op in mock mode — there's no real calendar to patch.
+export async function syncMemberEmailOnCalendarEvents(params: {
+  memberId: string;
+  memberName: string;
+  memberEmail: string | null;
+}): Promise<void> {
+  const connection = await getActiveConnection();
+  if (!connection) return;
+
+  const [bookings, attendances] = await Promise.all([
+    prisma.booking.findMany({
+      where: { memberId: params.memberId, status: { not: "CANCELLED" }, googleCalendarEventId: { not: null } },
+      include: { partner: true },
+    }),
+    prisma.eventAttendance.findMany({
+      where: { memberId: params.memberId, joined: true, googleCalendarEventId: { not: null } },
+    }),
+  ]);
+
+  for (const booking of bookings) {
+    if (!booking.googleCalendarEventId) continue;
+    const attendees = [
+      params.memberEmail ? { email: params.memberEmail, displayName: params.memberName } : null,
+      booking.partner.email ? { email: booking.partner.email, displayName: booking.partner.name } : null,
+    ].filter((a): a is { email: string; displayName: string } => a !== null);
+    await updateEventAttendees({ googleCalendarEventId: booking.googleCalendarEventId, attendees });
+  }
+
+  for (const attendance of attendances) {
+    if (!attendance.googleCalendarEventId) continue;
+    const attendees = params.memberEmail ? [{ email: params.memberEmail, displayName: params.memberName }] : [];
+    await updateEventAttendees({ googleCalendarEventId: attendance.googleCalendarEventId, attendees });
+  }
 }
 
 export async function rescheduleCalendarEvent(params: {

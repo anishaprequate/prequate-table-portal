@@ -7,11 +7,19 @@ import { INTRODUCTION_STATUS_LABELS, type IntroductionStatus } from "@prequate/c
 import { formatDateOnly } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 import { UnreadBadge } from "@/components/unread-badge";
+import { DirectoryFilterBar } from "@/components/directory-filter-bar";
 
 export default async function DirectoryPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; requested?: string; responded?: string; q?: string; sector?: string };
+  searchParams: {
+    tab?: string;
+    requested?: string;
+    responded?: string;
+    q?: string;
+    sector?: string;
+    eventId?: string;
+  };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -19,15 +27,17 @@ export default async function DirectoryPage({
   const tab = searchParams.tab === "sent" || searchParams.tab === "received" ? searchParams.tab : "directory";
   const q = searchParams.q?.trim() ?? "";
   const sectorFilter = searchParams.sector ?? "";
+  const eventFilter = searchParams.eventId ?? "";
 
   const visibleWhere = { role: "MEMBER", directoryOptOut: false } as const;
 
-  const [members, filterOptions, sent, received] = await Promise.all([
+  const [members, filterOptions, eventOptions, sent, received] = await Promise.all([
     prisma.user.findMany({
       where: {
         ...visibleWhere,
         ...(q && { name: { contains: q } }),
         ...(sectorFilter && { sector: sectorFilter }),
+        ...(eventFilter && { eventAttendances: { some: { eventId: eventFilter, joined: true } } }),
       },
       orderBy: { name: "asc" },
       select: { id: true, name: true, seatType: true, sector: true, bio: true, photoUrl: true },
@@ -35,6 +45,11 @@ export default async function DirectoryPage({
     prisma.user.findMany({
       where: visibleWhere,
       select: { sector: true },
+    }),
+    prisma.event.findMany({
+      where: { archivedAt: null },
+      select: { id: true, title: true },
+      orderBy: { startTime: "desc" },
     }),
     prisma.introductionRequest.findMany({
       where: { requesterId: user.id },
@@ -49,7 +64,7 @@ export default async function DirectoryPage({
   ]);
 
   const sectors = [...new Set(filterOptions.map((m) => m.sector).filter((v): v is string => Boolean(v)))].sort();
-  const hasActiveFilter = Boolean(q || sectorFilter);
+  const hasActiveFilter = Boolean(q || sectorFilter || eventFilter);
 
   const pendingReceived = received.filter((r) => r.status === "SENT").length;
 
@@ -87,51 +102,14 @@ export default async function DirectoryPage({
 
       {tab === "directory" && (
         <>
-          <form className="mb-6 flex items-center gap-3 border-b border-grey/30 pb-2" action="/directory">
-            <input
-              type="text"
-              name="q"
-              defaultValue={q}
-              placeholder="Search by name"
-              className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-grey/70"
-            />
-            <details className="relative flex-shrink-0">
-              <summary
-                aria-label="Filter"
-                className="flex cursor-pointer list-none items-center text-grey transition hover:text-ink [&::-webkit-details-marker]:hidden"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 2.5h14M4 8h8M6.5 13.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                </svg>
-              </summary>
-              <div className="absolute right-0 top-full z-10 mt-3 w-48 rounded-md border border-grey/20 bg-paper p-3 shadow-md">
-                <label className="mb-1 block text-xs uppercase tracking-wide text-grey">Sector</label>
-                <select
-                  name="sector"
-                  defaultValue={sectorFilter}
-                  className="w-full rounded-md border border-grey/30 bg-paper px-2 py-1.5 text-sm text-ink"
-                >
-                  <option value="">All sectors</option>
-                  {sectors.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="mt-3 w-full rounded-md bg-orange px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
-                >
-                  Apply
-                </button>
-              </div>
-            </details>
-            {hasActiveFilter && (
-              <Link href="/directory" className="flex-shrink-0 text-xs text-grey underline hover:text-ink">
-                Clear
-              </Link>
-            )}
-          </form>
+          <DirectoryFilterBar
+            q={q}
+            sector={sectorFilter}
+            eventId={eventFilter}
+            sectorOptions={sectors}
+            eventOptions={eventOptions}
+            hasActiveFilter={hasActiveFilter}
+          />
 
           {hasActiveFilter && (
             <p className="mb-4 text-xs uppercase tracking-wide text-grey">

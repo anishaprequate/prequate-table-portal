@@ -13,10 +13,13 @@ export default async function CannedResponseDetailPage({
   searchParams: { saved?: string; edit?: string; error?: string };
 }) {
   const admin = await getCurrentAdmin();
-  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/settings/canned-responses");
+  if (!admin || !(isFullAdmin(admin.role) || admin.role === "PARTNER") || !canWrite(admin.role)) {
+    redirect("/settings/canned-responses");
+  }
   const editing = searchParams.edit === "1";
+  const audience = admin.role === "PARTNER" ? "PARTNER" : "ADMIN";
 
-  const response = await prisma.cannedResponse.findUnique({ where: { id: params.id } });
+  const response = await prisma.cannedResponse.findFirst({ where: { id: params.id, audience } });
   if (!response) notFound();
 
   return (

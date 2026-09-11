@@ -69,6 +69,13 @@ export default async function ConciergeDetailPage({
         </div>
       )}
 
+      {request.locationContext && (
+        <div className="mb-8">
+          <p className="mb-1 text-xs uppercase tracking-wide text-grey">Requested from</p>
+          <p className="text-sm">{request.locationContext} (NFC tap)</p>
+        </div>
+      )}
+
       {editing ? (
         <form action={updateConciergeRequest} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={request.id} />

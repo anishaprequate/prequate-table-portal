@@ -5,7 +5,7 @@ import { BackLink } from "@/components/back-link";
 export default async function BookPartnerPage({
   searchParams,
 }: {
-  searchParams: { parentBookingId?: string };
+  searchParams: { parentBookingId?: string; month?: string };
 }) {
   const partners = await prisma.user.findMany({
     where: { role: "PARTNER" },
@@ -15,6 +15,7 @@ export default async function BookPartnerPage({
   const parentParam = searchParams.parentBookingId
     ? `&parentBookingId=${searchParams.parentBookingId}`
     : "";
+  const monthParam = searchParams.month === "1" ? "&month=1" : "&month=0";
 
   return (
     <div className="max-w-md">
@@ -27,7 +28,7 @@ export default async function BookPartnerPage({
         {partners.map((partner) => (
           <li key={partner.id} className="py-4">
             <Link
-              href={`/the-hour/book/slot?partnerId=${partner.id}${parentParam}`}
+              href={`/the-hour/book/slot?partnerId=${partner.id}${parentParam}${monthParam}`}
               className="block"
             >
               <p className="font-display text-xl italic leading-tight text-ink">{partner.name}</p>

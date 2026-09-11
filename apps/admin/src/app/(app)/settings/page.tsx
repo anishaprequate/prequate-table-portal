@@ -82,6 +82,16 @@ export default async function SettingsPage({
           Canned responses
         </Link>
       </div>
+
+      <div className="mt-12">
+        <div className="mb-2 text-xs uppercase tracking-wide text-grey">Profile</div>
+        <Link
+          href="/settings/interests"
+          className="text-sm text-ink underline decoration-grey/40 underline-offset-4 transition hover:decoration-ink"
+        >
+          Interest categories
+        </Link>
+      </div>
     </div>
   );
 }

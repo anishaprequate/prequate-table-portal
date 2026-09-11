@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { adminSignOut } from "@/lib/actions/auth";
+
+const POLL_INTERVAL_MS = 30_000;
 
 const FULL_ADMIN_NAV = [
   { href: "/members", label: "Members" },
@@ -12,6 +15,7 @@ const FULL_ADMIN_NAV = [
   { href: "/introductions", label: "Introductions" },
   { href: "/insight", label: "Insight" },
   { href: "/messages", label: "Messages" },
+  { href: "/notifications", label: "Notifications" },
   { href: "/reports", label: "Reports" },
   { href: "/settings", label: "Settings" },
 ];
@@ -23,6 +27,8 @@ const PARTNER_NAV = [
   { href: "/bookings", label: "My bookings" },
   { href: "/insight", label: "Insight" },
   { href: "/messages", label: "Messages" },
+  { href: "/reports", label: "Reports" },
+  { href: "/settings/canned-responses", label: "Canned responses" },
 ];
 
 export function NavShell({
@@ -32,6 +38,7 @@ export function NavShell({
   isOwner,
   readOnly,
   unreadMessages = 0,
+  unreadNotifications = 0,
 }: {
   children: React.ReactNode;
   adminName: string;
@@ -39,9 +46,24 @@ export function NavShell({
   isOwner?: boolean;
   readOnly?: boolean;
   unreadMessages?: number;
+  unreadNotifications?: number;
 }) {
   const pathname = usePathname();
   const NAV_ITEMS = isFullAdmin ? [...FULL_ADMIN_NAV, ...(isOwner ? OWNER_ONLY_NAV : [])] : PARTNER_NAV;
+  const [unread, setUnread] = useState(unreadMessages);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/notifications/unread-count");
+        if (res.ok) setUnread((await res.json()).count);
+      } catch {
+        // Offline or a blip — next poll will pick it back up.
+      }
+    };
+    const id = setInterval(poll, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -59,9 +81,14 @@ export function NavShell({
               >
                 {active && <span className="h-1.5 w-1.5 rounded-full bg-orange" />}
                 {item.label}
-                {item.href === "/messages" && unreadMessages > 0 && (
+                {item.href === "/messages" && unread > 0 && (
                   <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
-                    {unreadMessages}
+                    {unread}
+                  </span>
+                )}
+                {item.href === "/notifications" && unreadNotifications > 0 && (
+                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
+                    {unreadNotifications}
                   </span>
                 )}
               </Link>

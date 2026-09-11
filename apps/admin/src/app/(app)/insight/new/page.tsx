@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 import { createInsightPost } from "@/lib/actions/insight";
 import { BackLink } from "@/components/back-link";
-import { RichTextEditor } from "@/components/rich-text-editor";
+import { InsightFormFields } from "@/components/insight-form-fields";
 import { PageHero } from "@/components/page-hero";
 
 export default async function NewInsightPostPage({
@@ -30,44 +30,7 @@ export default async function NewInsightPostPage({
       )}
 
       <form action={createInsightPost} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5 text-sm">
-          Title
-          <input
-            type="text"
-            name="title"
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          Subheading
-          <input
-            type="text"
-            name="subheading"
-            placeholder="One line, under the title."
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          Tags
-          <input
-            type="text"
-            name="tags"
-            placeholder="Comma-separated, e.g. Fundraising, Hiring"
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          Image (optional)
-          <input type="file" name="image" accept="image/*" className="text-sm" />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          Body
-          <RichTextEditor name="body" />
-        </label>
+        <InsightFormFields authorName={admin.name} />
 
         <button
           type="submit"

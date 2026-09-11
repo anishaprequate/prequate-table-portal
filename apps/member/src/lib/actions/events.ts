@@ -16,7 +16,7 @@ export async function joinEvent(formData: FormData) {
     where: { id: eventId },
     include: { ticketTypes: true },
   });
-  if (!event) redirect("/events");
+  if (!event || event.archivedAt) redirect("/events");
 
   const existing = await prisma.eventAttendance.findUnique({
     where: { eventId_memberId: { eventId, memberId: user.id } },
@@ -117,4 +117,49 @@ export async function joinEvent(formData: FormData) {
   });
 
   revalidatePath(`/events/${eventId}`);
+}
+
+// Member-initiated. The freed seat does not auto-promote the next person
+// on the waitlist — an admin handles that manually, same as an admin-side
+// cancellation.
+export async function cancelEventRsvp(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const attendance = await prisma.eventAttendance.findUnique({
+    where: { eventId_memberId: { eventId, memberId: user.id } },
+  });
+  if (!attendance) redirect(`/events/${eventId}`);
+
+  if (attendance.googleCalendarEventId) {
+    await googleCalendar.cancelCalendarEvent(attendance.googleCalendarEventId);
+  }
+
+  await prisma.eventAttendance.delete({ where: { id: attendance.id } });
+
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}`);
+}
+
+export async function submitEventSurvey(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const rating = Number(formData.get("rating") ?? "0");
+  const feedback = String(formData.get("feedback") ?? "").trim() || null;
+  if (!rating || rating < 1 || rating > 5) redirect(`/events/${eventId}/survey?error=rating`);
+
+  const attendance = await prisma.eventAttendance.findUnique({
+    where: { eventId_memberId: { eventId, memberId: user.id } },
+  });
+  if (!attendance) redirect(`/events/${eventId}`);
+
+  await prisma.eventAttendance.update({
+    where: { id: attendance.id },
+    data: { surveyRating: rating, surveyFeedback: feedback, surveyRespondedAt: new Date() },
+  });
+
+  redirect(`/events/${eventId}/survey?saved=1`);
 }

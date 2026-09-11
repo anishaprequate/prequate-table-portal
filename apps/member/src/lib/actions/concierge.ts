@@ -14,6 +14,7 @@ export async function submitConciergeRequest(formData: FormData) {
   const wantsOther = selected.includes("other");
   const customText = String(formData.get("customText") ?? "").trim();
   const detail = String(formData.get("detail") ?? "").trim() || null;
+  const locationContext = String(formData.get("location") ?? "").trim() || null;
 
   if (categoryIds.length === 0 && !(wantsOther && customText)) {
     redirect("/concierge?error=incomplete");
@@ -39,13 +40,14 @@ export async function submitConciergeRequest(formData: FormData) {
           detail,
           status: "SUBMITTED",
           dueAt,
+          locationContext,
         },
       });
     }),
     ...(wantsOther && customText
       ? [
           prisma.conciergeRequest.create({
-            data: { memberId: user.id, customText, detail, status: "SUBMITTED" },
+            data: { memberId: user.id, customText, detail, status: "SUBMITTED", locationContext },
           }),
         ]
       : []),

@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "dependencies": {
     "@prequate/db": "*",
-    "nodemailer": "^10.0.1"
+    "nodemailer": "^10.0.1",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

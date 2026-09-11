@@ -5,9 +5,14 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import sanitizeHtml from "sanitize-html";
+import sharp from "sharp";
 import { prisma } from "@prequate/db";
-import { luma, googleCalendar, UPLOADS_DIR, EVENT_TIER_LABELS, type EventTier } from "@prequate/core";
+import { luma, googleCalendar, createNotification, mailer, UPLOADS_DIR, EVENT_TIER_LABELS, type EventTier } from "@prequate/core";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
+import { formatDateOnly } from "@/lib/format";
+
+const GALLERY_MAX_BYTES = 15 * 1024 * 1024;
+const GALLERY_ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".heic", ".heif"]);
 
 type EventForCalendar = {
   id: string;
@@ -91,11 +96,27 @@ function parseQuestions(raw: FormDataEntryValue | null): string | null {
   return questions.length > 0 ? JSON.stringify(questions) : null;
 }
 
+// One "Name, email" pair per line — Annual Gathering guests beyond the
+// membership, not tied to a Member record.
+function parseExternalGuests(raw: FormDataEntryValue | null): string | null {
+  const guests = String(raw ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, email] = line.split(",").map((s) => s.trim());
+      return name ? { name, email: email ?? "" } : null;
+    })
+    .filter((g): g is { name: string; email: string } => g !== null);
+  return guests.length > 0 ? JSON.stringify(guests) : null;
+}
+
 export async function publishEvent(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
 
   const lumaEventId = String(formData.get("lumaEventId") ?? "");
+  const tier = parseTier(formData.get("tier"));
   const [upcoming, past] = await Promise.all([luma.getUpcomingEvents(), luma.getPastEvents()]);
   const source = [...upcoming, ...past].find((e) => e.lumaEventId === lumaEventId);
   if (!source) redirect("/events");
@@ -110,6 +131,10 @@ export async function publishEvent(formData: FormData) {
       startTime: source.startTime,
       endTime: source.endTime,
       publishedAt: new Date(),
+      // Luma has no tier concept of its own — this comes from the picker
+      // right next to the Publish button, so it's never silently left at
+      // the DINNER default.
+      tier,
     },
     update: {},
   });
@@ -132,6 +157,9 @@ export async function createEvent(formData: FormData) {
   const approvalRequired = formData.get("approvalRequired") === "on";
   const allowPlusOne = formData.get("allowPlusOne") === "on";
   const registrationQuestions = parseQuestions(formData.get("registrationQuestions"));
+  const sponsorName = String(formData.get("sponsorName") ?? "").trim() || null;
+  const sponsorLogoUrl = String(formData.get("sponsorLogoUrl") ?? "").trim() || null;
+  const externalGuests = parseExternalGuests(formData.get("externalGuests"));
   const intent = String(formData.get("intent") ?? "publish");
 
   if (!title || Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
@@ -150,6 +178,9 @@ export async function createEvent(formData: FormData) {
       approvalRequired,
       allowPlusOne,
       registrationQuestions,
+      sponsorName,
+      sponsorLogoUrl,
+      externalGuests,
       publishedAt: intent === "publish" ? new Date() : null,
     },
   });
@@ -192,7 +223,7 @@ export async function cloneEvent(formData: FormData) {
   });
 
   revalidatePath("/events");
-  redirect(`/events/${clone.id}?edit=1`);
+  redirect(`/events/${clone.id}/edit`);
 }
 
 export async function updateEventDetails(formData: FormData) {
@@ -211,6 +242,9 @@ export async function updateEventDetails(formData: FormData) {
   const approvalRequired = formData.get("approvalRequired") === "on";
   const allowPlusOne = formData.get("allowPlusOne") === "on";
   const registrationQuestions = parseQuestions(formData.get("registrationQuestions"));
+  const sponsorName = String(formData.get("sponsorName") ?? "").trim() || null;
+  const sponsorLogoUrl = String(formData.get("sponsorLogoUrl") ?? "").trim() || null;
+  const externalGuests = parseExternalGuests(formData.get("externalGuests"));
 
   const imageUrl = await storeImage(eventId, formData.get("image"));
 
@@ -227,6 +261,9 @@ export async function updateEventDetails(formData: FormData) {
       approvalRequired,
       allowPlusOne,
       registrationQuestions,
+      sponsorName,
+      sponsorLogoUrl,
+      externalGuests,
       ...(imageUrl ? { imageUrl } : {}),
     },
   });
@@ -272,6 +309,115 @@ export async function publishEventDraft(formData: FormData) {
   redirect(`/events/${eventId}?saved=1`);
 }
 
+// Reverts a published event back to draft — the other half of the
+// draft/publish toggle alongside publishEventDraft.
+export async function unpublishEvent(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  await prisma.event.update({ where: { id: eventId }, data: { publishedAt: null } });
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/events");
+  redirect(`/events/${eventId}?saved=1`);
+}
+
+// Draft or published, deletes outright — any confirmation for a published
+// event with existing RSVPs happens client-side (see DeleteEventButton)
+// before this ever gets called.
+// Soft delete — archives rather than removing the row, so it stays
+// viewable (and restorable) under the Archive tab instead of vanishing.
+export async function deleteEvent(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) redirect("/events");
+
+  await prisma.event.update({ where: { id: eventId }, data: { archivedAt: new Date() } });
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}`);
+}
+
+export async function restoreEvent(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  await prisma.event.update({ where: { id: eventId }, data: { archivedAt: null } });
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}?saved=1`);
+}
+
+// Its own state, distinct from delete/archive — the event stops accepting
+// RSVPs and stops appearing to browse, but every existing RSVP'd member
+// (joined, waitlisted, or pending approval — anyone who took an action)
+// gets notified, and the event's history stays exactly as it was. Shown
+// in the Archive tab alongside deleted events, but labeled "Cancelled"
+// there rather than "Archived".
+export async function cancelEvent(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      attendances: {
+        where: { OR: [{ joined: true }, { waitlisted: true }, { pendingApproval: true }] },
+      },
+    },
+  });
+  if (!event) redirect("/events");
+
+  await prisma.event.update({
+    where: { id: eventId },
+    data: { cancelledAt: new Date(), cancellationReason: reason },
+  });
+
+  const message = `The ${event.title} on ${formatDateOnly(event.startTime)} has been cancelled.${
+    reason ? `\n${reason}` : ""
+  }`;
+  await Promise.all(
+    event.attendances.map((attendance) =>
+      createNotification({
+        recipientId: attendance.memberId,
+        type: "event_cancelled",
+        message,
+        relatedEntityType: "event",
+        relatedEntityId: event.id,
+      }),
+    ),
+  );
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}?saved=1`);
+}
+
+export async function uncancelEvent(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  await prisma.event.update({
+    where: { id: eventId },
+    data: { cancelledAt: null, cancellationReason: null },
+  });
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}?saved=1`);
+}
+
 export async function generateInviteLink(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
@@ -285,7 +431,7 @@ export async function generateInviteLink(formData: FormData) {
   }
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?edit=1&saved=1`);
+  redirect(`/events/${eventId}/edit?saved=1`);
 }
 
 export async function addTicketType(formData: FormData) {
@@ -296,13 +442,13 @@ export async function addTicketType(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
   const capacity = capacityRaw ? Math.max(0, Math.trunc(Number(capacityRaw))) : null;
-  if (!name) redirect(`/events/${eventId}?edit=1`);
+  if (!name) redirect(`/events/${eventId}/edit`);
 
   const count = await prisma.eventTicketType.count({ where: { eventId } });
   await prisma.eventTicketType.create({ data: { eventId, name, capacity, sortOrder: count } });
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?edit=1&saved=1`);
+  redirect(`/events/${eventId}/edit?saved=1`);
 }
 
 export async function deleteTicketType(formData: FormData) {
@@ -314,7 +460,7 @@ export async function deleteTicketType(formData: FormData) {
   await prisma.eventTicketType.delete({ where: { id } });
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?edit=1&saved=1`);
+  redirect(`/events/${eventId}/edit?saved=1`);
 }
 
 export async function inviteMembersToEvent(formData: FormData) {
@@ -335,7 +481,7 @@ export async function inviteMembersToEvent(formData: FormData) {
   );
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?edit=1&saved=1`);
+  redirect(`/events/${eventId}/edit?saved=1`);
 }
 
 export async function removeEventInvite(formData: FormData) {
@@ -351,7 +497,7 @@ export async function removeEventInvite(formData: FormData) {
   });
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?edit=1&saved=1`);
+  redirect(`/events/${eventId}/edit?saved=1`);
 }
 
 export async function approveAttendance(formData: FormData) {
@@ -381,8 +527,8 @@ export async function approveAttendance(formData: FormData) {
   });
   if (!waitlisted) await ensureCalendarEntry(event, id);
 
-  revalidatePath(`/events/${event.id}`);
-  redirect(`/events/${event.id}?saved=1`);
+  revalidatePath(`/events/${event.id}/registration`);
+  redirect(`/events/${event.id}/registration?saved=1`);
 }
 
 export async function declineAttendance(formData: FormData) {
@@ -395,8 +541,8 @@ export async function declineAttendance(formData: FormData) {
 
   await prisma.eventAttendance.delete({ where: { id } });
 
-  revalidatePath(`/events/${attendance.eventId}`);
-  redirect(`/events/${attendance.eventId}?saved=1`);
+  revalidatePath(`/events/${attendance.eventId}/registration`);
+  redirect(`/events/${attendance.eventId}/registration?saved=1`);
 }
 
 export async function checkInAttendee(formData: FormData) {
@@ -412,7 +558,8 @@ export async function checkInAttendee(formData: FormData) {
     data: { checkedInAt: checkedIn ? new Date() : null },
   });
 
-  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/events/${eventId}/registration`);
+  revalidatePath(`/events/${eventId}/guests`);
 }
 
 export async function promoteFromWaitlist(formData: FormData) {
@@ -427,8 +574,8 @@ export async function promoteFromWaitlist(formData: FormData) {
   await prisma.eventAttendance.update({ where: { id }, data: { joined: true, waitlisted: false } });
   await ensureCalendarEntry(event, id);
 
-  revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?saved=1`);
+  revalidatePath(`/events/${eventId}/registration`);
+  redirect(`/events/${eventId}/registration?saved=1`);
 }
 
 export async function demoteToWaitlist(formData: FormData) {
@@ -439,37 +586,116 @@ export async function demoteToWaitlist(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   await prisma.eventAttendance.update({ where: { id }, data: { joined: false, waitlisted: true } });
 
-  revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?saved=1`);
+  revalidatePath(`/events/${eventId}/registration`);
+  redirect(`/events/${eventId}/registration?saved=1`);
 }
 
+// A one-off announcement or reminder, not a saved recurring campaign.
+// Default recipients are confirmed RSVPs; the "include waitlisted" checkbox
+// widens that. Delivered as an in-app message (landing in the member's RM
+// thread, same as any RM message) and a real email alongside it. No separate
+// Notification is created for this — the message itself, once unread, is
+// the signal; a distinct Notification row would just duplicate it (see
+// notifications.ts's note on keeping notifications and messages separate).
+// The send itself is logged as an EventBlast so admins can see blast
+// history (who sent what, when, to how many) on the Blasts tab.
 export async function blastEventMessage(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
 
   const eventId = String(formData.get("eventId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) redirect(`/events/${eventId}`);
+  const includeWaitlist = formData.get("includeWaitlist") === "on";
+  if (!body) redirect(`/events/${eventId}/blasts`);
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) redirect("/events");
 
   const recipients = await prisma.eventAttendance.findMany({
-    where: { eventId, OR: [{ joined: true }, { waitlisted: true }] },
-    select: { memberId: true },
+    where: includeWaitlist ? { eventId, OR: [{ joined: true }, { waitlisted: true }] } : { eventId, joined: true },
+    include: { member: true },
   });
 
   const text = `${event.title}: ${body}`;
   await Promise.all(
-    recipients.map((r) =>
-      prisma.message.create({
+    recipients.map(async (r) => {
+      await prisma.message.create({
         data: { memberId: r.memberId, partnerId: null, senderRole: "RM", authorId: admin.id, body: text },
-      }),
-    ),
+      });
+      if (r.member.email) {
+        await mailer.sendEmail({ to: r.member.email, subject: event.title, text });
+      }
+    }),
   );
 
+  await prisma.eventBlast.create({
+    data: {
+      eventId,
+      authorId: admin.id,
+      body,
+      includeWaitlist,
+      recipientCount: recipients.length,
+    },
+  });
+
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}?blasted=1`);
+  redirect(`/events/${eventId}/blasts?blasted=1`);
+}
+
+// Admin-only uploads. Stores the original file plus a resized JPEG
+// thumbnail for the gallery grid — thumbnail generation is best-effort: if
+// sharp can't decode the source (some HEIC files, depending on what this
+// environment's image library was built with), thumbnailUrl stays null and
+// the gallery falls back to the original instead of failing the upload.
+export async function uploadEventPhotos(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) redirect("/events");
+
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  await mkdir(UPLOADS_DIR, { recursive: true });
+
+  for (const file of files) {
+    const ext = path.extname(file.name).toLowerCase();
+    if (!GALLERY_ALLOWED_EXT.has(ext) || file.size > GALLERY_MAX_BYTES) continue;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    const storedName = `gallery-${eventId}-${Date.now()}-${safeName}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(UPLOADS_DIR, storedName), buffer);
+
+    let thumbnailUrl: string | null = null;
+    try {
+      const thumbName = `gallery-thumb-${eventId}-${Date.now()}-${safeName}.jpg`;
+      const thumbBuffer = await sharp(buffer).resize(480, 480, { fit: "cover" }).jpeg({ quality: 80 }).toBuffer();
+      await writeFile(path.join(UPLOADS_DIR, thumbName), thumbBuffer);
+      thumbnailUrl = thumbName;
+    } catch {
+      thumbnailUrl = null;
+    }
+
+    await prisma.eventPhoto.create({
+      data: { eventId, url: storedName, thumbnailUrl, uploadedById: admin.id },
+    });
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}/guests?photosUploaded=1`);
+}
+
+export async function deleteEventPhoto(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  await prisma.eventPhoto.delete({ where: { id } });
+
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}/guests`);
 }
 
 export async function saveEventNote(formData: FormData) {

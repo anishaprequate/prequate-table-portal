@@ -2,16 +2,24 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
-import { joinEvent } from "@/lib/actions/events";
+import { joinEvent, cancelEventRsvp } from "@/lib/actions/events";
 import { formatSlot, formatDateOnly } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
 
-export default async function EventDetailPage({ params }: { params: { id: string } }) {
+const PHOTOS_PER_PAGE = 20;
+
+export default async function EventDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { photoPage?: string };
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const event = await prisma.event.findFirst({
-    where: { id: params.id, publishedAt: { not: null } },
+    where: { id: params.id, publishedAt: { not: null }, archivedAt: null },
     include: { ticketTypes: { orderBy: { sortOrder: "asc" } } },
   });
   if (!event) notFound();
@@ -31,6 +39,21 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const isWaitlisted = attendance?.waitlisted ?? false;
   const isPendingApproval = attendance?.pendingApproval ?? false;
   const isPast = event.startTime < new Date();
+  const isCancelled = Boolean(event.cancelledAt);
+
+  const photoPage = Math.max(1, Number(searchParams.photoPage ?? "1") || 1);
+  const [photoCount, photos] = hasJoined
+    ? await Promise.all([
+        prisma.eventPhoto.count({ where: { eventId: event.id } }),
+        prisma.eventPhoto.findMany({
+          where: { eventId: event.id },
+          orderBy: { createdAt: "desc" },
+          skip: (photoPage - 1) * PHOTOS_PER_PAGE,
+          take: PHOTOS_PER_PAGE,
+        }),
+      ])
+    : [0, []];
+  const totalPhotoPages = Math.max(1, Math.ceil(photoCount / PHOTOS_PER_PAGE));
   const isInvited = attendance?.invited ?? false;
   const canSee = !event.inviteOnly || isInvited || hasJoined || isWaitlisted || isPendingApproval;
   const isAnnual = event.tier === "ANNUAL";
@@ -57,30 +80,53 @@ export default async function EventDetailPage({ params }: { params: { id: string
         />
       )}
 
-      <h1 className="mb-1 font-display text-4xl italic leading-[1.05] text-ink sm:text-5xl">{event.title}</h1>
+      <h1 className="mb-1 font-display text-4xl italic leading-[1.05] text-ink sm:text-5xl">
+        {event.title}
+        {isCancelled && (
+          <span className="ml-3 align-middle rounded-full bg-grey/10 px-2.5 py-1 text-sm font-sans not-italic text-grey">
+            Cancelled
+          </span>
+        )}
+      </h1>
       <p className="mb-10 text-sm text-grey">
         {formatSlot(event.startTime)}
         {event.location && ` · ${event.location}`}
-        {spotsLeft !== null && !isPast && ` · ${Math.max(spotsLeft, 0)} spot${spotsLeft === 1 ? "" : "s"} left`}
+        {spotsLeft !== null && !isPast && !isCancelled && ` · ${Math.max(spotsLeft, 0)} spot${spotsLeft === 1 ? "" : "s"} left`}
       </p>
 
-      {event.description && (
-        <div
-          className="prose-editor mb-8 text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: event.description }}
-        />
+      {isCancelled && (
+        <p className="mb-8 rounded-md bg-grey/10 px-3 py-2 text-sm text-ink">
+          This event has been cancelled.
+          {event.cancellationReason && (
+            <>
+              <br />
+              {event.cancellationReason}
+            </>
+          )}
+        </p>
       )}
 
-      {!canSee && <p className="mb-8 text-sm text-grey">This one is invite-only.</p>}
+      {event.description && (
+        <div className="mb-6 rounded-md border border-grey/15 p-4">
+          <div
+            className="prose-editor text-sm leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: event.description }}
+          />
+        </div>
+      )}
 
-      {canSee && !isPast &&
+      {!canSee && !isCancelled && <p className="mb-8 text-sm text-grey">This one is invite-only.</p>}
+
+      {canSee && !isPast && !isCancelled &&
         (isPendingApproval ? (
-          <p className="mb-8 text-sm text-grey">
-            Your registration is pending approval. We'll let you know once it's confirmed.
-          </p>
+          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+            <p className="text-sm text-ink">
+              Your registration is pending approval. We&apos;ll let you know once it&apos;s confirmed.
+            </p>
+          </div>
         ) : hasJoined ? (
-          <div className="mb-8">
-            <p className="text-sm text-grey">You're on the list for this one — added to your calendar.</p>
+          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+            <p className="text-sm text-ink">You&apos;re on the list for this one — added to your calendar.</p>
             {(myGuestNames.length > 0 ||
               attendance?.arrivalDate ||
               attendance?.dietaryNotes ||
@@ -119,13 +165,30 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 ))}
               </dl>
             )}
+            <form action={cancelEventRsvp} className="mt-4">
+              <input type="hidden" name="eventId" value={event.id} />
+              <button type="submit" className="text-sm text-grey underline hover:text-ink">
+                Cancel RSVP
+              </button>
+            </form>
           </div>
         ) : isWaitlisted ? (
-          <p className="mb-8 text-sm text-grey">
-            This one's full — you're on the waitlist. We'll let you know if a spot opens up.
-          </p>
+          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+            <p className="text-sm text-ink">
+              This one&apos;s full — you&apos;re on the waitlist. We&apos;ll let you know if a spot opens up.
+            </p>
+            <form action={cancelEventRsvp} className="mt-4">
+              <input type="hidden" name="eventId" value={event.id} />
+              <button type="submit" className="text-sm text-grey underline hover:text-ink">
+                Leave waitlist
+              </button>
+            </form>
+          </div>
         ) : (
-          <form action={joinEvent} className="mb-8 flex flex-col gap-3">
+          <form
+            action={joinEvent}
+            className="mb-6 flex flex-col gap-4 rounded-md border border-orange/30 bg-orange/5 p-4"
+          >
             <input type="hidden" name="eventId" value={event.id} />
 
             {event.ticketTypes.length > 0 && (
@@ -153,7 +216,8 @@ export default async function EventDetailPage({ params }: { params: { id: string
             )}
 
             {isAnnual && (
-              <>
+              <div className="flex flex-col gap-4 border-t border-orange/20 pt-4">
+                <p className="text-xs uppercase tracking-wide text-grey">For the Annual Gathering</p>
                 <label className="flex flex-col gap-1.5 text-sm">
                   Arrival date
                   <input
@@ -178,19 +242,23 @@ export default async function EventDetailPage({ params }: { params: { id: string
                     className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
                   />
                 </label>
-              </>
+              </div>
             )}
 
-            {questions.map((question, i) => (
-              <label key={i} className="flex flex-col gap-1.5 text-sm">
-                {question}
-                <input
-                  type="text"
-                  name={`question_${i}`}
-                  className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-                />
-              </label>
-            ))}
+            {questions.length > 0 && (
+              <div className="flex flex-col gap-4 border-t border-orange/20 pt-4">
+                {questions.map((question, i) => (
+                  <label key={i} className="flex flex-col gap-1.5 text-sm">
+                    {question}
+                    <input
+                      type="text"
+                      name={`question_${i}`}
+                      className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
 
             <button
               type="submit"
@@ -202,7 +270,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
         ))}
 
       {attendees.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-6 rounded-md border border-grey/15 p-4">
           <p className="mb-2 text-xs uppercase tracking-wide text-grey">Who's going</p>
           <ul className="text-sm">
             {attendees.map((a) => (
@@ -216,9 +284,51 @@ export default async function EventDetailPage({ params }: { params: { id: string
       )}
 
       {isPast && hasJoined && event.adminNote && (
-        <div className="mb-8">
+        <div className="mb-6 rounded-md border border-grey/15 p-4">
           <p className="mb-2 text-xs uppercase tracking-wide text-grey">A note from the room</p>
           <p className="text-sm leading-relaxed">{event.adminNote}</p>
+        </div>
+      )}
+
+      {hasJoined && photoCount > 0 && (
+        <div className="mb-6 rounded-md border border-grey/15 p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Photos ({photoCount})</p>
+          <div className="grid grid-cols-3 gap-2">
+            {photos.map((photo) => (
+              <a
+                key={photo.id}
+                href={`/api/events/${event.id}/gallery/${photo.url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block aspect-square overflow-hidden rounded-md"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/events/${event.id}/gallery/${photo.thumbnailUrl ?? photo.url}`}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              </a>
+            ))}
+          </div>
+          {totalPhotoPages > 1 && (
+            <div className="mt-3 flex gap-4 text-xs text-grey">
+              {photoPage > 1 && (
+                <Link href={`/events/${event.id}?photoPage=${photoPage - 1}`} className="hover:text-ink">
+                  ← Newer
+                </Link>
+              )}
+              <span>
+                Page {photoPage} of {totalPhotoPages}
+              </span>
+              {photoPage < totalPhotoPages && (
+                <Link href={`/events/${event.id}?photoPage=${photoPage + 1}`} className="hover:text-ink">
+                  Older →
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       )}
 

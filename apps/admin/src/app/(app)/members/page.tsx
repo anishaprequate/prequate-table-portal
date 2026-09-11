@@ -6,19 +6,39 @@ import { getCurrentAdmin, canView, canWrite } from "@/lib/session";
 import { formatSeatDisplay } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 import { LifecycleBadge } from "@/components/lifecycle-badge";
+import { MembersFilterBar } from "@/components/members-filter-bar";
 
 export default async function MembersPage({
   searchParams,
 }: {
-  searchParams: { added?: string; skipped?: string };
+  searchParams: { added?: string; skipped?: string; q?: string; sector?: string; eventId?: string };
 }) {
   const admin = await getCurrentAdmin();
   if (!admin || !canView(admin.role)) redirect("/bookings");
 
-  const members = await prisma.user.findMany({
-    where: { role: "MEMBER" },
-    orderBy: { name: "asc" },
-  });
+  const q = searchParams.q ?? "";
+  const sector = searchParams.sector ?? "";
+  const eventId = searchParams.eventId ?? "";
+
+  const [members, sectorRows, eventOptions] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        role: "MEMBER",
+        ...(q && { name: { contains: q } }),
+        ...(sector && { sector }),
+        ...(eventId && { eventAttendances: { some: { eventId, joined: true } } }),
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({ where: { role: "MEMBER" }, select: { sector: true } }),
+    prisma.event.findMany({
+      where: { archivedAt: null },
+      select: { id: true, title: true },
+      orderBy: { startTime: "desc" },
+    }),
+  ]);
+
+  const sectorOptions = Array.from(new Set(sectorRows.map((m) => m.sector).filter(Boolean))).sort() as string[];
 
   return (
     <div className="max-w-3xl">
@@ -44,6 +64,17 @@ export default async function MembersPage({
         )}
       </div>
 
+      <MembersFilterBar
+        q={q}
+        sector={sector}
+        eventId={eventId}
+        sectorOptions={sectorOptions}
+        eventOptions={eventOptions}
+      />
+
+      {members.length === 0 && <p className="mb-10 text-sm text-grey">No members match these filters.</p>}
+
+      {members.length > 0 && (
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
@@ -76,6 +107,7 @@ export default async function MembersPage({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

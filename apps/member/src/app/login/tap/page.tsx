@@ -2,11 +2,7 @@ import { prisma } from "@prequate/db";
 import { simulateTap } from "@/lib/actions/auth";
 import { formatSeatDisplay } from "@/lib/format";
 
-export default async function TapLoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function TapLoginPage() {
   const members = await prisma.user.findMany({
     where: { role: "MEMBER" },
     orderBy: { name: "asc" },
@@ -21,12 +17,6 @@ export default async function TapLoginPage({
             Hold your plate near your phone
           </span>
         </div>
-
-        {searchParams.error === "not-found" && (
-          <p className="mb-4 text-sm text-deep-orange">
-            That plate isn&apos;t recognized. Try again, or use your phone number.
-          </p>
-        )}
 
         <form action={simulateTap} className="flex flex-col gap-3">
           <label className="text-left text-xs text-grey">

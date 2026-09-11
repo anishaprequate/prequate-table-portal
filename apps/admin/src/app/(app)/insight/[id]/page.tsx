@@ -6,7 +6,7 @@ import { updateInsightPost, approveInsightPost, rejectInsightPost } from "@/lib/
 import { INSIGHT_STATUS_LABELS, type InsightPostStatus } from "@prequate/core";
 import { formatDateOnly } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
-import { RichTextEditor } from "@/components/rich-text-editor";
+import { InsightFormFields } from "@/components/insight-form-fields";
 
 export default async function InsightDetailPage({
   params,
@@ -20,7 +20,7 @@ export default async function InsightDetailPage({
 
   const post = await prisma.insightPost.findUnique({
     where: { id: params.id },
-    include: { author: true },
+    include: { author: true, _count: { select: { views: true } } },
   });
   if (!post) notFound();
 
@@ -32,27 +32,14 @@ export default async function InsightDetailPage({
   const rejecting = canReview && searchParams.reject === "1";
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-2xl">
       {searchParams.saved && !editing && (
         <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>
       )}
 
-      <div className="mb-1 flex items-start justify-between gap-4">
-        <p className="text-sm text-grey">
-          {post.author.name} · {formatDateOnly(post.createdAt)}
-          {status !== "PUBLISHED" && (
-            <span className="ml-2 text-deep-orange">{INSIGHT_STATUS_LABELS[status] ?? status}</span>
-          )}
-        </p>
-        {canEdit && !editing && (
-          <Link
-            href={`/insight/${post.id}?edit=1`}
-            className="flex-shrink-0 rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
-          >
-            Edit
-          </Link>
-        )}
-      </div>
+      {status !== "PUBLISHED" && !editing && (
+        <p className="mb-4 text-sm text-deep-orange">{INSIGHT_STATUS_LABELS[status] ?? status}</p>
+      )}
 
       {status === "REJECTED" && post.reviewNote && (
         <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">
@@ -110,16 +97,42 @@ export default async function InsightDetailPage({
 
       {!editing && (
         <>
-          <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">{post.title}</h1>
-          {post.subheading && <p className="mb-6 text-sm text-grey">{post.subheading}</p>}
-          {post.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={post.imageUrl}
-              alt=""
-              className="mb-6 w-full rounded-md object-cover"
-            />
-          )}
+          <div className="mb-3 flex items-start justify-between gap-4">
+            <h1 className="font-display text-5xl italic leading-[1.05] text-ink sm:text-6xl">{post.title}</h1>
+            {canEdit && (
+              <Link
+                href={`/insight/${post.id}?edit=1`}
+                className="mt-2 flex-shrink-0 rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
+              >
+                Edit
+              </Link>
+            )}
+          </div>
+          {post.subheading && <p className="mb-6 text-xl leading-snug text-grey">{post.subheading}</p>}
+
+          <div className="mb-8 flex items-center gap-3">
+            {post.author.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={post.author.photoUrl}
+                alt=""
+                className="h-10 w-10 rounded-full object-cover"
+                draggable={false}
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange/10 font-display text-sm text-ink">
+                {post.author.name.charAt(0)}
+              </div>
+            )}
+            <div className="text-sm">
+              <p className="font-medium text-ink">{post.author.name}</p>
+              <p className="text-grey">
+                {formatDateOnly(post.createdAt)} · {post._count.views} view
+                {post._count.views === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
+
           {post.tags && (
             <div className="mb-6 flex flex-wrap gap-2">
               {(JSON.parse(post.tags) as string[]).map((tag) => (
@@ -129,7 +142,18 @@ export default async function InsightDetailPage({
               ))}
             </div>
           )}
-          <div className="prose-editor text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: post.body }} />
+
+          {post.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={post.imageUrl}
+              alt=""
+              className="mb-10 h-[280px] w-full rounded-md object-cover md:h-[420px]"
+              draggable={false}
+            />
+          )}
+
+          <div className="prose-post text-lg leading-loose" dangerouslySetInnerHTML={{ __html: post.body }} />
         </>
       )}
 
@@ -137,51 +161,14 @@ export default async function InsightDetailPage({
         <form action={updateInsightPost} className="mt-6 flex flex-col gap-4">
           <input type="hidden" name="id" value={post.id} />
 
-          <label className="flex flex-col gap-1.5 text-sm">
-            Title
-            <input
-              type="text"
-              name="title"
-              defaultValue={post.title}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm">
-            Subheading
-            <input
-              type="text"
-              name="subheading"
-              defaultValue={post.subheading ?? ""}
-              placeholder="One line, under the title."
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
-          </label>
-
-          {post.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={post.imageUrl} alt="" className="w-full rounded-md object-cover" />
-          )}
-          <label className="flex flex-col gap-1.5 text-sm">
-            {post.imageUrl ? "Replace image" : "Add an image"}
-            <input type="file" name="image" accept="image/*" className="text-sm" />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm">
-            Tags
-            <input
-              type="text"
-              name="tags"
-              defaultValue={post.tags ? (JSON.parse(post.tags) as string[]).join(", ") : ""}
-              placeholder="Comma-separated, e.g. Fundraising, Hiring"
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm">
-            Body
-            <RichTextEditor name="body" initialContent={post.body} />
-          </label>
+          <InsightFormFields
+            authorName={post.author.name}
+            defaultTitle={post.title}
+            defaultSubheading={post.subheading ?? ""}
+            defaultTags={post.tags ? (JSON.parse(post.tags) as string[]).join(", ") : ""}
+            defaultImageUrl={post.imageUrl}
+            initialBody={post.body}
+          />
 
           <div className="flex gap-3">
             <button

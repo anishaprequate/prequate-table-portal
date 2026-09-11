@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/auth";
+
+const POLL_INTERVAL_MS = 30_000;
 
 const NAV_ITEMS = [
   { href: "/home", label: "Home" },
@@ -12,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/directory", label: "Directory" },
   { href: "/insight", label: "Insight" },
   { href: "/messages", label: "Messages" },
+  { href: "/notifications", label: "Notifications" },
   { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
 ];
@@ -20,12 +24,33 @@ export function NavShell({
   children,
   memberName,
   unreadMessages = 0,
+  unreadNotifications = 0,
 }: {
   children: React.ReactNode;
   memberName: string;
   unreadMessages?: number;
+  unreadNotifications?: number;
 }) {
   const pathname = usePathname();
+  const [unread, setUnread] = useState(unreadMessages);
+  const [unreadNotifs, setUnreadNotifs] = useState(unreadNotifications);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const [messagesRes, notificationsRes] = await Promise.all([
+          fetch("/api/messages/unread-count"),
+          fetch("/api/notifications/unread-count"),
+        ]);
+        if (messagesRes.ok) setUnread((await messagesRes.json()).count);
+        if (notificationsRes.ok) setUnreadNotifs((await notificationsRes.json()).count);
+      } catch {
+        // Offline or a blip — next poll will pick it back up.
+      }
+    };
+    const id = setInterval(poll, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -45,9 +70,14 @@ export function NavShell({
               >
                 {active && <span className="h-1.5 w-1.5 rounded-full bg-orange" />}
                 {item.label}
-                {item.href === "/messages" && unreadMessages > 0 && (
+                {item.href === "/messages" && unread > 0 && (
                   <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
-                    {unreadMessages}
+                    {unread}
+                  </span>
+                )}
+                {item.href === "/notifications" && unreadNotifs > 0 && (
+                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
+                    {unreadNotifs}
                   </span>
                 )}
               </Link>
