@@ -16,11 +16,9 @@ export async function createBooking(formData: FormData) {
   const startTime = new Date(String(formData.get("startTime") ?? ""));
   const endTime = new Date(String(formData.get("endTime") ?? ""));
   const memberContext = String(formData.get("memberContext") ?? "").trim() || null;
-  const parentBookingId = String(formData.get("parentBookingId") ?? "") || null;
 
-  const parentQuery = parentBookingId ? `&parentBookingId=${parentBookingId}` : "";
   if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-    redirect(`/the-hour/book/slot?partnerId=${partnerId}${parentQuery}&error=no-slot`);
+    redirect(`/the-hour/book/slot?partnerId=${partnerId}&error=no-slot`);
   }
 
   const partner = await prisma.user.findFirst({ where: { id: partnerId, role: "PARTNER" } });
@@ -29,7 +27,7 @@ export async function createBooking(formData: FormData) {
   const monthConflict = await findBookingInMonth(user.id, startTime);
   if (monthConflict) {
     const month = encodeURIComponent(formatMonthLabel(startTime));
-    redirect(`/the-hour/book/slot?partnerId=${partnerId}${parentQuery}&error=month-used&month=${month}`);
+    redirect(`/the-hour/book/slot?partnerId=${partnerId}&error=month-used&month=${month}`);
   }
 
   const { googleCalendarEventId } = await googleCalendar.createCalendarEvent({
@@ -50,7 +48,6 @@ export async function createBooking(formData: FormData) {
       startTime,
       endTime,
       memberContext,
-      parentBookingId,
       status: "CONFIRMED",
       googleCalendarEventId,
     },
@@ -74,6 +71,7 @@ export async function cancelBooking(formData: FormData) {
   if (!user) redirect("/login");
 
   const bookingId = String(formData.get("bookingId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim() || null;
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, memberId: user.id },
   });
@@ -85,7 +83,7 @@ export async function cancelBooking(formData: FormData) {
 
   await prisma.booking.update({
     where: { id: bookingId },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
+    data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: reason },
   });
 
   revalidatePath("/the-hour");

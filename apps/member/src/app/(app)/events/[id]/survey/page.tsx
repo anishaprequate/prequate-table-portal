@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { submitEventSurvey } from "@/lib/actions/events";
@@ -15,12 +15,25 @@ export default async function EventSurveyPage({
   if (!user) redirect("/login");
 
   const event = await prisma.event.findUnique({ where: { id: params.id } });
-  if (!event) notFound();
 
-  const attendance = await prisma.eventAttendance.findUnique({
-    where: { eventId_memberId: { eventId: event.id, memberId: user.id } },
-  });
-  if (!attendance?.joined) notFound();
+  const attendance = event
+    ? await prisma.eventAttendance.findUnique({
+        where: { eventId_memberId: { eventId: event.id, memberId: user.id } },
+      })
+    : null;
+
+  // A stale or already-superseded survey link (the event was removed, or
+  // this member's RSVP no longer qualifies) shouldn't read as a hard error
+  // — just say so and point back to Events, instead of the framework's
+  // raw not-found page.
+  if (!event || !attendance?.joined) {
+    return (
+      <div className="max-w-md">
+        <p className="mb-6 text-sm text-grey">This survey isn&apos;t available anymore.</p>
+        <BackLink href="/events" />
+      </div>
+    );
+  }
 
   const alreadyResponded = Boolean(attendance.surveyRespondedAt);
 

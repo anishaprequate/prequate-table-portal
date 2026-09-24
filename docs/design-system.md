@@ -126,3 +126,27 @@ Two passes, per Anisha's direction:
 
 Nothing is explicitly out of scope for either pass — anywhere the same
 crammed-together pattern shows up gets the same treatment.
+
+## 8. Scoped exceptions
+
+**Event detail: a sidebar layout, not a fixed single column.** Section 5
+prefers fixed-width single-column layouts for anything read top-to-bottom,
+reserving full-width grids for hub pages. The member app's individual event
+page (`/events/[id]`) is a deliberate, scoped exception: at `lg` and above
+it uses a two-column grid (flexible main column, fixed 320px sidebar) so
+that hosted-by and who's-going read as distinct, persistently visible
+blocks rather than one long scroll. Below `lg` it still collapses to a
+single column, main content (hero, date/location, the RSVP action) first,
+per the fewest-clicks rule above. This is the only page in either app that
+departs from the fixed single-column rule as of this pass; if another page
+wants the same treatment, argue for it on its own terms rather than
+assuming this precedent covers it.
+
+**Insights tabs use only data that already exists.** The admin Events
+Insights tab (`/events/[id]/insights`) is built entirely from
+`EventAttendance` fields already in the schema — registration timestamps,
+ticket-type assignment, join/waitlist/pending/checked-in status. There is
+no page-view or traffic-analytics model anywhere in this app. No
+Insights-style tab should ever imply one — no chart, stat, or caption
+suggesting "views" or "shares" where no such tracking exists. Any future
+analytics tab must be scoped to what a real Prisma model can answer.

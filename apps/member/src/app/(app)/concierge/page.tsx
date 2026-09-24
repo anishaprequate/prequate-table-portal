@@ -6,7 +6,7 @@ import { submitConciergeRequest } from "@/lib/actions/concierge";
 import { CONCIERGE_STATUS_LABELS, type ConciergeStatus } from "@prequate/core";
 import { formatDateOnly } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
-import { ConciergeIcon } from "@/components/concierge-icon";
+import { ConciergeCategoryPicker } from "@/components/concierge-category-picker";
 
 export default async function ConciergePage({
   searchParams,
@@ -31,9 +31,8 @@ export default async function ConciergePage({
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-8 flex items-start justify-between gap-6">
+      <div className="mb-8">
         <PageHero title="Concierge" subtitle="Anything you need, handled." />
-        <p className="flex-shrink-0 text-sm text-grey">{user.points} points</p>
       </div>
 
       <div className="mb-8 flex gap-6 border-b border-grey/15">
@@ -142,71 +141,7 @@ export default async function ConciergePage({
             )}
           </div>
 
-          {groups.map((group) => (
-            <div key={group}>
-              <p className="mb-3 text-xs uppercase tracking-wide text-grey">{group}</p>
-              <div className="flex flex-col gap-3">
-                {categories
-                  .filter((c) => c.group === group)
-                  .map((category) => {
-                    const examples = JSON.parse(category.examples) as string[];
-                    return (
-                      <div key={category.id} className="group">
-                        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-paper">
-                          <input type="checkbox" name="categoryId" value={category.id} className="hidden" />
-                          <ConciergeIcon category={category.category} className="h-3.5 w-3.5 flex-shrink-0" />
-                          {category.category}
-                        </label>
-                        <div className="hidden group-has-[:checked]:mt-3 group-has-[:checked]:block">
-                          <div className="rounded-md border border-grey/15 bg-paper p-4">
-                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-deep-orange">
-                              {category.category}
-                            </p>
-                            <p className="mb-3 font-display text-lg italic leading-tight text-ink">
-                              Which of these sound right?
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {examples.map((example) => (
-                                <label
-                                  key={example}
-                                  className="cursor-pointer rounded-full border border-grey/30 px-3 py-1.5 text-xs text-ink transition has-[:checked]:border-orange has-[:checked]:bg-orange/10 has-[:checked]:font-medium has-[:checked]:text-deep-orange"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    name={`subitems.${category.id}`}
-                                    value={example}
-                                    className="hidden"
-                                  />
-                                  {example}
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
-
-          <div className="group">
-            <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-paper">
-              <input type="checkbox" name="categoryId" value="other" className="hidden" />
-              Something else
-            </label>
-            <div className="hidden group-has-[:checked]:mt-3 group-has-[:checked]:block">
-              <div className="rounded-md border border-grey/15 bg-paper p-4">
-                <p className="mb-3 font-display text-lg italic leading-tight text-ink">Tell us more</p>
-                <textarea
-                  name="customText"
-                  rows={2}
-                  placeholder="Describe what you need."
-                  className="w-full rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
-                />
-              </div>
-            </div>
-          </div>
+          <ConciergeCategoryPicker groups={groups} categories={categories} />
 
           <label className="flex flex-col gap-1.5 text-sm">
             Anything specific to add

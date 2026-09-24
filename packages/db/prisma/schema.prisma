@@ -70,6 +70,13 @@ model User {
   // member. Doesn't affect the RM thread, which always exists.
   allowPartnerMessages Boolean @default(true)
 
+  // Email preferences — gate only the ambient reminder/blast/survey
+  // emails below; transactional email (magic-link login, a booking's own
+  // confirmation) always sends regardless of these.
+  emailHourReminders Boolean @default(true)
+  emailEventBlasts   Boolean @default(true)
+  emailEventSurveys  Boolean @default(true)
+
   // Set the first time a member completes login. Gates the one-time
   // quiet-arrival screen — shown once, never again after.
   firstLoginAt DateTime?
@@ -256,6 +263,9 @@ model Booking {
   // cancellation (cancelled less than 24 hours before startTime) from a
   // normal one.
   cancelledAt DateTime?
+  // Always collected from whoever cancels (member or admin) — unlike the
+  // event-cancellation reason, this one is required at the form level.
+  cancellationReason String?
 
   // Set when the member taps their NFC card at the start of this session —
   // an automatic alternative to an admin marking attendance by hand. Purely
@@ -549,10 +559,11 @@ model Message {
   createdAt  DateTime @default(now())
 }
 
-// The minimal in-app notification system. Seeded with every trigger type
-// this pipeline's later stages will need, even though only "new_message"
-// actually fires yet — that way adding a new trigger later is a new call
-// site, not a schema change.
+// The minimal in-app notification system. "new_message" is deliberately
+// never created here — see packages/core/src/notifications.ts — a new
+// message already has its own unread signal (Message.read); the types
+// that actually fire today are "event_cancelled", "event_survey", and
+// "member_inactive".
 model Notification {
   id              String    @id @default(cuid())
   recipientId     String

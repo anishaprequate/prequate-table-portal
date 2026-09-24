@@ -12,10 +12,19 @@ export async function updateSettings(formData: FormData) {
 
   const directoryOptOut = formData.get("showInDirectory") !== "on";
   const allowPartnerMessages = formData.get("allowPartnerMessages") === "on";
+  const emailHourReminders = formData.get("emailHourReminders") === "on";
+  const emailEventBlasts = formData.get("emailEventBlasts") === "on";
+  const emailEventSurveys = formData.get("emailEventSurveys") === "on";
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { directoryOptOut, allowPartnerMessages },
+    data: {
+      directoryOptOut,
+      allowPartnerMessages,
+      emailHourReminders,
+      emailEventBlasts,
+      emailEventSurveys,
+    },
   });
 
   const directoryNote = summarizeToggleChange("Directory visibility", !user.directoryOptOut, !directoryOptOut);

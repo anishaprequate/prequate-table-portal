@@ -16,7 +16,6 @@ export default async function BookSlotPage({
 }: {
   searchParams: {
     partnerId?: string;
-    parentBookingId?: string;
     error?: string;
     month?: string;
   };
@@ -80,9 +79,6 @@ export default async function BookSlotPage({
       ) : (
         <form action={createBooking} className="flex flex-col gap-8">
           <input type="hidden" name="partnerId" value={partnerId} />
-          {searchParams.parentBookingId && (
-            <input type="hidden" name="parentBookingId" value={searchParams.parentBookingId} />
-          )}
 
           {slotOptions.length === 0 ? (
             <p className="text-sm text-grey">No open slots left with {partner.name} in {MONTH_NAME.format(targetMonth)}.</p>

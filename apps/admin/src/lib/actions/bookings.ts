@@ -27,11 +27,16 @@ export async function adminCancelBooking(formData: FormData) {
   const { admin, booking } = await requireBookingAccess(bookingId);
   if (!isFullAdmin(admin.role) || !canWrite(admin.role)) redirect(`/bookings/${bookingId}`);
 
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+
   if (booking.googleCalendarEventId) {
     await googleCalendar.cancelCalendarEvent(booking.googleCalendarEventId);
   }
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: reason },
+  });
 
   revalidatePath("/bookings");
   redirect("/bookings");

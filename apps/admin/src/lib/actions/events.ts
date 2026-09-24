@@ -622,7 +622,7 @@ export async function blastEventMessage(formData: FormData) {
       await prisma.message.create({
         data: { memberId: r.memberId, partnerId: null, senderRole: "RM", authorId: admin.id, body: text },
       });
-      if (r.member.email) {
+      if (r.member.email && r.member.emailEventBlasts) {
         await mailer.sendEmail({ to: r.member.email, subject: event.title, text });
       }
     }),

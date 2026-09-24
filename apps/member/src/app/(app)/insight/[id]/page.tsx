@@ -38,7 +38,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-3 flex items-start justify-between gap-4">
-        <h1 className="font-display text-5xl italic leading-[1.05] text-ink sm:text-6xl">{post.title}</h1>
+        <h1 className="font-display text-3xl italic leading-[1.05] text-ink sm:text-5xl">{post.title}</h1>
         <form action={toggleBookmark} className="mt-2 flex-shrink-0">
           <input type="hidden" name="postId" value={post.id} />
           <button

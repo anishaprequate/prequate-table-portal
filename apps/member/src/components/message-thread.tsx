@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -33,7 +33,9 @@ export function MessageThread({
 
   // Jump to the latest message on open, and again whenever the list grows
   // (a poll landing, or the page refreshing after this member sends one).
-  useEffect(() => {
+  // useLayoutEffect, not useEffect — it runs before the browser paints, so
+  // the thread never flashes its oldest messages first on entry.
+  useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
 

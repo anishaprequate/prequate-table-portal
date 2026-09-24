@@ -6,6 +6,7 @@ import { requestIntroduction } from "@/lib/actions/directory";
 import { INTRODUCTION_STATUS_LABELS, type IntroductionStatus } from "@prequate/core";
 import { BackLink } from "@/components/back-link";
 import { SeatBadge } from "@/components/seat-badge";
+import { Avatar } from "@/components/avatar";
 
 export default async function DirectoryMemberPage({
   params,
@@ -37,19 +38,7 @@ export default async function DirectoryMemberPage({
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="flex items-center gap-5">
           <SeatBadge seatNumber={member.seatNumber} />
-          {member.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={member.photoUrl}
-              alt=""
-              className="h-16 w-16 rounded-full object-cover"
-              draggable={false}
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange/10 font-display text-xl text-ink">
-              {member.name.charAt(0)}
-            </div>
-          )}
+          <Avatar name={member.name} photoUrl={member.photoUrl} size="lg" />
           <h1 className="font-display text-[2.75rem] italic leading-[1.02] tracking-[-0.01em] text-ink">
             {firstName} <span className="text-deep-orange">{lastName}</span>
           </h1>

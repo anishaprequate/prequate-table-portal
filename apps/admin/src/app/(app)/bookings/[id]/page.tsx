@@ -6,6 +6,7 @@ import { adminCancelBooking, uploadBrief, setBookingOutcome } from "@/lib/action
 import { BOOKING_STATUS_LABELS, type BookingStatus } from "@prequate/core";
 import { formatSlot } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
+import { CancelBookingForm } from "@/components/cancel-booking-form";
 
 export default async function BookingDetailPage({
   params,
@@ -70,15 +71,7 @@ export default async function BookingDetailPage({
           >
             Reschedule
           </Link>
-          <form action={adminCancelBooking}>
-            <input type="hidden" name="bookingId" value={booking.id} />
-            <button
-              type="submit"
-              className="rounded-md border border-grey/30 px-5 py-3 text-sm font-medium text-ink transition hover:border-grey/60"
-            >
-              Cancel on the member's behalf
-            </button>
-          </form>
+          <CancelBookingForm bookingId={booking.id} action={adminCancelBooking} />
         </div>
       )}
 

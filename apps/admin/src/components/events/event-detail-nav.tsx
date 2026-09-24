@@ -10,7 +10,7 @@ export function EventDetailNav({
   showEdit,
 }: {
   eventId: string;
-  active: "overview" | "edit" | "registration" | "guests" | "blasts";
+  active: "overview" | "edit" | "registration" | "guests" | "blasts" | "insights";
   showEdit: boolean;
 }) {
   const base = `/events/${eventId}`;
@@ -20,6 +20,7 @@ export function EventDetailNav({
     { key: "registration", href: `${base}/registration`, label: "Registration" },
     { key: "guests", href: `${base}/guests`, label: "Guests" },
     { key: "blasts", href: `${base}/blasts`, label: "Blasts" },
+    { key: "insights", href: `${base}/insights`, label: "Insights" },
   ] as const;
 
   return (

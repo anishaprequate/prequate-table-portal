@@ -8,6 +8,7 @@ import { formatDateOnly } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 import { UnreadBadge } from "@/components/unread-badge";
 import { DirectoryFilterBar } from "@/components/directory-filter-bar";
+import { Avatar } from "@/components/avatar";
 
 export default async function DirectoryPage({
   searchParams,
@@ -29,7 +30,7 @@ export default async function DirectoryPage({
   const sectorFilter = searchParams.sector ?? "";
   const eventFilter = searchParams.eventId ?? "";
 
-  const visibleWhere = { role: "MEMBER", directoryOptOut: false } as const;
+  const visibleWhere = { role: "MEMBER", directoryOptOut: false, id: { not: user.id } } as const;
 
   const [members, filterOptions, eventOptions, sent, received] = await Promise.all([
     prisma.user.findMany({
@@ -123,19 +124,7 @@ export default async function DirectoryPage({
           {members.map((member) => (
             <li key={member.id} className="py-5">
               <Link href={`/directory/${member.id}`} className="flex items-start gap-4">
-                {member.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={member.photoUrl}
-                    alt=""
-                    className="h-12 w-12 flex-shrink-0 rounded-full object-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-orange/10 font-display text-base text-ink">
-                    {member.name.charAt(0)}
-                  </div>
-                )}
+                <Avatar name={member.name} photoUrl={member.photoUrl} size="md" />
                 <div>
                   <p className="font-display text-xl italic leading-tight text-ink">{member.name}</p>
                   {member.seatType && <p className="text-xs text-grey">{member.seatType}</p>}

@@ -51,21 +51,36 @@ export default async function EventBlastsPage({ params }: { params: { id: string
         <p className="mb-8 text-sm text-grey">Only a full admin can send a blast.</p>
       )}
 
-      <div className="rounded-md border border-grey/15 p-4">
-        <p className="mb-2 text-xs uppercase tracking-wide text-grey">Previous blasts ({event.blasts.length})</p>
+      <div className="mb-8 rounded-md border border-grey/15 p-4">
+        <p className="mb-3 text-xs uppercase tracking-wide text-grey">Previous blasts ({event.blasts.length})</p>
         {event.blasts.length === 0 && <p className="text-sm text-grey">None sent yet.</p>}
-        <ul className="flex flex-col gap-3 text-sm">
+        <ul className="flex flex-col gap-4 text-sm">
           {event.blasts.map((blast) => (
-            <li key={blast.id} className="rounded-md border border-grey/15 p-3">
-              <p className="text-ink">{blast.body}</p>
-              <p className="mt-1 text-xs text-grey">
-                {blast.author.name} · {formatSlot(blast.createdAt)} · {blast.recipientCount} recipient
-                {blast.recipientCount === 1 ? "" : "s"}
-                {blast.includeWaitlist && " · incl. waitlist"}
-              </p>
+            <li key={blast.id} className="flex items-start gap-3">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-orange/10 font-display text-sm text-ink">
+                {blast.author.name.charAt(0)}
+              </span>
+              <div>
+                <p className="text-ink">
+                  <span className="font-medium">{blast.author.name}</span>{" "}
+                  <span className="text-xs text-grey">{formatSlot(blast.createdAt)}</span>
+                </p>
+                <p className="mt-0.5 text-ink">{blast.body}</p>
+                <p className="mt-1 text-xs text-grey">
+                  To: Going{blast.includeWaitlist && " + Waitlist"} ({blast.recipientCount})
+                </p>
+              </div>
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="mb-8 rounded-md border border-grey/15 p-4">
+        <p className="mb-2 text-xs uppercase tracking-wide text-grey">System messages</p>
+        <p className="text-sm text-ink">
+          An automated survey is sent to confirmed attendees 24 hours after the event ends, with one reminder after
+          3 days if unanswered.
+        </p>
       </div>
 
       <div className="mt-8">

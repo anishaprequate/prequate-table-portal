@@ -51,17 +51,17 @@ export default async function TheHourPage({
         </p>
       )}
 
-      <div className="mb-10 flex items-start justify-between gap-6">
+      <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PageHero title="The" accent="Hour." subtitle="Time with a partner, on your terms." />
         {bookHref ? (
           <Link
             href={bookHref}
-            className="flex-shrink-0 rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
+            className="w-fit flex-shrink-0 rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
           >
             Book a session
           </Link>
         ) : (
-          <p className="flex-shrink-0 text-sm text-grey">
+          <p className="text-sm text-grey">
             You've booked your Hour for {formatMonthLabel(now)} and {formatMonthLabel(nextMonthStart)}.
           </p>
         )}
@@ -84,23 +84,36 @@ export default async function TheHourPage({
         </ul>
       </section>
 
-      <section>
-        <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Past</h2>
-        {past.length === 0 && <p className="text-sm text-grey">No sessions yet.</p>}
-        <ul className="flex flex-col divide-y divide-grey/15">
-          {past.map((booking) => (
-            <li key={booking.id} className="py-4">
-              <Link href={`/the-hour/${booking.id}`} className="block">
-                <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
-                <p className="text-sm text-grey">
-                  {formatSlot(booking.startTime)}
-                  {booking.status === "CANCELLED" && " — cancelled"}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <details className="group">
+        <summary className="mb-4 flex cursor-pointer list-none items-center gap-2 text-xs uppercase tracking-wide text-grey [&::-webkit-details-marker]:hidden">
+          Past ({past.length})
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            className="transition group-open:rotate-180"
+          >
+            <path d="M1.5 3.5L5 7L8.5 3.5" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </summary>
+        {past.length === 0 ? (
+          <p className="text-sm text-grey">No sessions yet.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-grey/15">
+            {past.map((booking) => (
+              <li key={booking.id} className="py-4">
+                <Link href={`/the-hour/${booking.id}`} className="block">
+                  <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
+                  <p className="text-sm text-grey">
+                    {formatSlot(booking.startTime)}
+                    {booking.status === "CANCELLED" && " — cancelled"}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
     </div>
   );
 }

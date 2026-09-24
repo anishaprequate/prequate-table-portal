@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EVENT_TIER_LABELS, type EventTier } from "@prequate/core";
 import { getCurrentAdmin, canView, canWrite } from "@/lib/session";
 import { getEventDetail } from "@/lib/event-detail";
 import { EventHeader } from "@/components/events/event-header";
 import { EventDetailNav } from "@/components/events/event-detail-nav";
+import { EventStatsBar } from "@/components/events/event-stats-bar";
 import { BackLink } from "@/components/back-link";
 
 export default async function EventOverviewPage({
@@ -19,7 +21,7 @@ export default async function EventOverviewPage({
 
   const detail = await getEventDetail(params.id);
   if (!detail) notFound();
-  const { event, isPast, takenSpots } = detail;
+  const { event, isPast, takenSpots, joined, totalJoined, totalWaitlist, totalPending, checkedInCount } = detail;
 
   return (
     <div className="max-w-md">
@@ -27,6 +29,28 @@ export default async function EventOverviewPage({
 
       <EventHeader detail={detail} writable={writable} />
       <EventDetailNav eventId={event.id} active="overview" showEdit={writable} />
+
+      <EventStatsBar
+        capacity={event.capacity}
+        takenSpots={takenSpots}
+        joinedCount={totalJoined}
+        waitlistCount={totalWaitlist}
+        pendingCount={totalPending}
+        checkedInCount={checkedInCount}
+      />
+
+      {isPast && (
+        <div className="mb-6 rounded-md border border-grey/15 p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Event recap</p>
+          <p className="text-sm text-ink">
+            {checkedInCount} attended of {joined.length} registered
+            {joined.length > 0 && ` (${Math.round((checkedInCount / joined.length) * 100)}%)`}
+          </p>
+          <Link href={`/events/${event.id}/insights`} className="mt-2 inline-block text-sm text-grey underline hover:text-ink">
+            See full breakdown →
+          </Link>
+        </div>
+      )}
 
       {event.description && (
         <div className="mb-6 rounded-md border border-grey/15 p-4">

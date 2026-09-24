@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { cancelBooking } from "@/lib/actions/bookings";
 import { formatSlot } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
+import { CancelBookingForm } from "@/components/cancel-booking-form";
 
 export default async function BookingDetailPage({
   params,
@@ -79,36 +80,17 @@ export default async function BookingDetailPage({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        {isUpcoming && (
-          <>
-            <Link
-              href={`/the-hour/${booking.id}/reschedule`}
-              className="rounded-md border border-grey/30 px-5 py-3 text-sm font-medium text-ink transition hover:border-grey/60"
-            >
-              Reschedule
-            </Link>
-            <form action={cancelBooking}>
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <button
-                type="submit"
-                className="rounded-md border border-grey/30 px-5 py-3 text-sm font-medium text-ink transition hover:border-grey/60"
-              >
-                Cancel
-              </button>
-            </form>
-          </>
-        )}
-
-        {isPast && !isCancelled && (
+      {isUpcoming && (
+        <div className="flex flex-wrap gap-3">
           <Link
-            href={`/the-hour/book/slot?partnerId=${booking.partnerId}&parentBookingId=${booking.id}`}
-            className="rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
+            href={`/the-hour/${booking.id}/reschedule`}
+            className="rounded-md border border-grey/30 px-5 py-3 text-sm font-medium text-ink transition hover:border-grey/60"
           >
-            Request a follow-up
+            Reschedule
           </Link>
-        )}
-      </div>
+          <CancelBookingForm bookingId={booking.id} action={cancelBooking} />
+        </div>
+      )}
 
       <BackLink href="/the-hour" />
     </div>

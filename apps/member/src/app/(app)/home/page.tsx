@@ -20,37 +20,25 @@ export default async function HomePage() {
 
   const now = new Date();
 
-  const [nextBooking, upcomingEvents, conciergeRequests, latestInsight, latestMessages] =
-    await Promise.all([
-      prisma.booking.findFirst({
-        where: { memberId: user.id, startTime: { gte: now }, status: { not: "CANCELLED" } },
-        orderBy: { startTime: "asc" },
-        include: { partner: true },
-      }),
-      prisma.eventAttendance.findMany({
-        where: { memberId: user.id, joined: true, event: { startTime: { gte: now } } },
-        include: { event: true },
-        orderBy: { event: { startTime: "asc" } },
-        take: 2,
-      }),
-      prisma.conciergeRequest.findMany({
-        where: { memberId: user.id, status: { in: ["SUBMITTED", "AWAITING_APPROVAL", "ACCEPTED"] } },
-        include: { category: true },
-        orderBy: { createdAt: "desc" },
-        take: 2,
-      }),
-      prisma.insightPost.findFirst({
-        where: { publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
-      }),
-      prisma.message.findMany({
-        where: { memberId: user.id, senderRole: { not: "MEMBER" } },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      }),
-    ]);
-
-  const latestMessage = latestMessages[0];
+  const [nextBooking, upcomingEvents, conciergeRequests] = await Promise.all([
+    prisma.booking.findFirst({
+      where: { memberId: user.id, startTime: { gte: now }, status: { not: "CANCELLED" } },
+      orderBy: { startTime: "asc" },
+      include: { partner: true },
+    }),
+    prisma.eventAttendance.findMany({
+      where: { memberId: user.id, joined: true, event: { startTime: { gte: now } } },
+      include: { event: true },
+      orderBy: { event: { startTime: "asc" } },
+      take: 2,
+    }),
+    prisma.conciergeRequest.findMany({
+      where: { memberId: user.id, status: { in: ["SUBMITTED", "AWAITING_APPROVAL", "ACCEPTED"] } },
+      include: { category: true },
+      orderBy: { createdAt: "desc" },
+      take: 2,
+    }),
+  ]);
 
   const hoursToNextBooking = nextBooking
     ? (nextBooking.startTime.getTime() - now.getTime()) / (60 * 60 * 1000)
@@ -65,7 +53,7 @@ export default async function HomePage() {
         <PageHero title={<Greeting fallback={greeting(now.getHours())} />} accent={firstName} />
         <div className="flex flex-shrink-0 flex-col items-center gap-3">
           <SeatBadge seatNumber={user.seatNumber} />
-          <Link href="/profile">
+          <Link href="/settings">
             {user.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -133,32 +121,6 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-          )}
-        </Link>
-
-        <Link
-          href="/insight"
-          className="block rounded-md border border-grey/30 px-5 py-4 transition hover:border-orange"
-        >
-          <p className="mb-1 text-xs uppercase tracking-wide text-grey">Insight</p>
-          {latestInsight ? (
-            <p className="text-sm">{latestInsight.title}</p>
-          ) : (
-            <p className="text-sm">Nothing published yet.</p>
-          )}
-        </Link>
-
-        <Link
-          href="/messages"
-          className="block rounded-md border border-grey/30 px-5 py-4 transition hover:border-orange"
-        >
-          <p className="mb-1 text-xs uppercase tracking-wide text-grey">Messages</p>
-          {latestMessage ? (
-            <p className="text-sm">
-              {latestMessage.body.slice(0, 60)} · {formatSlot(latestMessage.createdAt)}
-            </p>
-          ) : (
-            <p className="text-sm">No messages yet.</p>
           )}
         </Link>
       </div>

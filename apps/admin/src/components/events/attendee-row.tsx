@@ -50,50 +50,59 @@ export function AttendeeRow({
   showDemote?: boolean;
 }) {
   return (
-    <li className="flex items-start justify-between gap-3">
-      <div>
-        <p>
-          {a.member.name}
-          {a.guestNames
-            ? ` + ${(JSON.parse(a.guestNames) as string[]).join(", ")}`
-            : a.guestCount > 0
-              ? ` + ${a.guestCount}`
-              : ""}
-          {ticketTypeName && <span className="text-grey"> · {ticketTypeName}</span>}
-          {a.checkedInAt && <span className="text-deep-orange"> · Checked in</span>}
-        </p>
-        <AttendeeRsvp attendee={a} />
-      </div>
-      {writable && (
-        <div className="flex flex-shrink-0 gap-2">
-          {showPromote && (
-            <form action={promoteFromWaitlist}>
-              <input type="hidden" name="id" value={a.id} />
-              <input type="hidden" name="eventId" value={eventId} />
-              <button type="submit" className="text-xs text-grey underline hover:text-ink">
-                Promote
-              </button>
-            </form>
+    <li className="flex flex-col gap-1.5 rounded-full border border-grey/15 px-3 py-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-orange/10 font-display text-xs text-ink">
+            {a.member.name.charAt(0)}
+          </span>
+          <span className="text-ink">
+            {a.member.name}
+            {a.guestNames
+              ? ` + ${(JSON.parse(a.guestNames) as string[]).join(", ")}`
+              : a.guestCount > 0
+                ? ` + ${a.guestCount}`
+                : ""}
+          </span>
+          {ticketTypeName && (
+            <span className="rounded-full bg-grey/10 px-2 py-0.5 text-xs text-grey">{ticketTypeName}</span>
           )}
-          {showDemote && (
-            <form action={demoteToWaitlist}>
-              <input type="hidden" name="id" value={a.id} />
-              <input type="hidden" name="eventId" value={eventId} />
-              <button type="submit" className="text-xs text-grey underline hover:text-ink">
-                Move to waitlist
-              </button>
-            </form>
+          {a.checkedInAt && (
+            <span className="rounded-full bg-deep-orange/10 px-2 py-0.5 text-xs text-deep-orange">Checked in</span>
           )}
-          <form action={checkInAttendee}>
-            <input type="hidden" name="id" value={a.id} />
-            <input type="hidden" name="eventId" value={eventId} />
-            <input type="hidden" name="checkedIn" value={a.checkedInAt ? "0" : "1"} />
-            <button type="submit" className="text-xs text-grey underline hover:text-ink">
-              {a.checkedInAt ? "Undo check-in" : "Check in"}
-            </button>
-          </form>
         </div>
-      )}
+        {writable && (
+          <div className="flex flex-shrink-0 gap-2">
+            {showPromote && (
+              <form action={promoteFromWaitlist}>
+                <input type="hidden" name="id" value={a.id} />
+                <input type="hidden" name="eventId" value={eventId} />
+                <button type="submit" className="text-xs text-grey underline hover:text-ink">
+                  Promote
+                </button>
+              </form>
+            )}
+            {showDemote && (
+              <form action={demoteToWaitlist}>
+                <input type="hidden" name="id" value={a.id} />
+                <input type="hidden" name="eventId" value={eventId} />
+                <button type="submit" className="text-xs text-grey underline hover:text-ink">
+                  Move to waitlist
+                </button>
+              </form>
+            )}
+            <form action={checkInAttendee}>
+              <input type="hidden" name="id" value={a.id} />
+              <input type="hidden" name="eventId" value={eventId} />
+              <input type="hidden" name="checkedIn" value={a.checkedInAt ? "0" : "1"} />
+              <button type="submit" className="text-xs text-grey underline hover:text-ink">
+                {a.checkedInAt ? "Undo check-in" : "Check in"}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+      <AttendeeRsvp attendee={a} />
     </li>
   );
 }

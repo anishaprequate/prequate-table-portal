@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       relatedEntityType: "event",
       relatedEntityId: attendance.eventId,
     });
-    if (attendance.member.email) {
+    if (attendance.member.email && attendance.member.emailEventSurveys) {
       const { subject, text } = emailTemplates.eventSurveyEmail({ eventTitle: attendance.event.title, link });
       await mailer.sendEmail({ to: attendance.member.email, subject, text });
     }
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       relatedEntityType: "event",
       relatedEntityId: attendance.eventId,
     });
-    if (attendance.member.email) {
+    if (attendance.member.email && attendance.member.emailEventSurveys) {
       const { subject, text } = emailTemplates.eventSurveyReminderEmail({
         eventTitle: attendance.event.title,
         link,

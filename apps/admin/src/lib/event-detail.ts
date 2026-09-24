@@ -30,6 +30,14 @@ export async function getEventDetail(id: string, q?: string) {
   const takenSpots = event.attendances.filter((a) => a.joined).reduce((sum, a) => sum + 1 + a.guestCount, 0);
   const ticketTypeName = (ttId: string | null) => event.ticketTypes.find((t) => t.id === ttId)?.name ?? null;
 
+  // Unfiltered totals for the stats bar — `joined`/`waitlist`/`pending` above
+  // are search-narrowed on the Guests page (via `q`), but the stats bar
+  // should always show the real totals regardless of an in-page search.
+  const totalJoined = event.attendances.filter((a) => a.joined).length;
+  const totalWaitlist = event.attendances.filter((a) => a.waitlisted).length;
+  const totalPending = event.attendances.filter((a) => a.pendingApproval).length;
+  const checkedInCount = event.attendances.filter((a) => a.checkedInAt).length;
+
   return {
     event,
     isPast,
@@ -42,7 +50,47 @@ export async function getEventDetail(id: string, q?: string) {
     invitedOnly,
     takenSpots,
     ticketTypeName,
+    totalJoined,
+    totalWaitlist,
+    totalPending,
+    checkedInCount,
   };
 }
 
 export type EventDetail = NonNullable<Awaited<ReturnType<typeof getEventDetail>>>;
+
+// Per-event insight aggregates for the Insights tab — pure derivations over
+// data `getEventDetail` already fetched, no new Prisma queries. Only counts
+// EventAttendance already tracks (registration timestamps, ticket type,
+// join/waitlist/pending/checked-in status) — there is no pageview/traffic
+// model for events, so this never shows anything beyond real attendance data.
+export function getEventInsights(detail: EventDetail) {
+  const { event, totalJoined, totalWaitlist, totalPending, checkedInCount } = detail;
+
+  const dayCounts = new Map<string, number>();
+  for (const a of event.attendances) {
+    if (!a.joined) continue;
+    const day = a.createdAt.toISOString().slice(0, 10);
+    dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
+  }
+  const registrationsByDay = Array.from(dayCounts.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, count]) => ({ date, count }));
+
+  const ticketCounts = new Map<string, number>();
+  for (const a of event.attendances) {
+    if (!a.joined) continue;
+    const name = detail.ticketTypeName(a.ticketTypeId) ?? "General";
+    ticketCounts.set(name, (ticketCounts.get(name) ?? 0) + 1);
+  }
+  const ticketTypeBreakdown = Array.from(ticketCounts.entries()).map(([name, count]) => ({ name, count }));
+
+  const statusBreakdown = [
+    { status: "Going", count: totalJoined },
+    { status: "Checked in", count: checkedInCount },
+    { status: "Waitlisted", count: totalWaitlist },
+    { status: "Pending", count: totalPending },
+  ];
+
+  return { registrationsByDay, ticketTypeBreakdown, statusBreakdown };
+}

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { joinEvent, cancelEventRsvp } from "@/lib/actions/events";
 import { formatSlot, formatDateOnly } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
+import { Avatar } from "@/components/avatar";
 
 const PHOTOS_PER_PAGE = 20;
 
@@ -69,7 +70,9 @@ export default async function EventDetailPage({
   const myGuestNames: string[] = attendance?.guestNames ? JSON.parse(attendance.guestNames) : [];
 
   return (
-    <div className="max-w-md">
+    <>
+    <div className="grid grid-cols-1 gap-8 lg:max-w-4xl lg:grid-cols-[1fr_320px]">
+    <div className="lg:col-start-1">
       {event.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -269,20 +272,6 @@ export default async function EventDetailPage({
           </form>
         ))}
 
-      {attendees.length > 0 && (
-        <div className="mb-6 rounded-md border border-grey/15 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Who's going</p>
-          <ul className="text-sm">
-            {attendees.map((a) => (
-              <li key={a.id}>
-                {a.member.name}
-                {a.guestCount > 0 && ` + ${a.guestCount}`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {isPast && hasJoined && event.adminNote && (
         <div className="mb-6 rounded-md border border-grey/15 p-4">
           <p className="mb-2 text-xs uppercase tracking-wide text-grey">A note from the room</p>
@@ -332,15 +321,68 @@ export default async function EventDetailPage({
         </div>
       )}
 
-      {!isPast && (
-        <div className="mb-8">
-          <Link href="/messages/rm" className="inline-block text-sm text-grey underline hover:text-ink">
-            Contact the host
-          </Link>
+    </div>
+
+    <div className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
+      <div className="rounded-md border border-grey/15 p-4">
+        <p className="mb-2 text-xs uppercase tracking-wide text-grey">Hosted by</p>
+        {event.sponsorLogoUrl ? (
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={event.sponsorLogoUrl}
+              alt=""
+              className="h-8 w-8 flex-shrink-0 rounded-full object-cover"
+              draggable={false}
+            />
+            <p className="text-sm text-ink">{event.sponsorName}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-ink">{event.sponsorName || "Hosted by The Prequate Table"}</p>
+        )}
+      </div>
+
+      {attendees.length > 0 && (
+        <div className="rounded-md border border-grey/15 p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Who's going</p>
+          <div className="mb-3 flex flex-wrap items-center">
+            {attendees.slice(0, 8).map((a) => (
+              <Avatar
+                key={a.id}
+                name={a.member.name}
+                photoUrl={a.member.photoUrl}
+                size="sm"
+                className="-ml-2 ring-2 ring-paper first:ml-0"
+              />
+            ))}
+            {attendees.length > 8 && (
+              <span className="-ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-grey/10 text-xs text-grey ring-2 ring-paper">
+                +{attendees.length - 8}
+              </span>
+            )}
+          </div>
+          <ul className="text-sm">
+            {attendees.map((a) => (
+              <li key={a.id}>
+                {a.member.name}
+                {a.guestCount > 0 && ` + ${a.guestCount}`}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      <BackLink href="/events" />
+      {!isPast && (
+        <Link href="/messages/rm" className="inline-block text-sm text-grey underline hover:text-ink">
+          Contact the host
+        </Link>
+      )}
     </div>
+    </div>
+
+      <div className="mt-8 lg:max-w-4xl">
+        <BackLink href="/events" />
+      </div>
+    </>
   );
 }

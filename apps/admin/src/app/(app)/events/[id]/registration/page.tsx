@@ -20,13 +20,35 @@ export default async function EventRegistrationPage({
 
   const detail = await getEventDetail(params.id);
   if (!detail) notFound();
-  const { event, joined, waitlist, pending, invitedOnly, ticketTypeName } = detail;
+  const { event, joined, waitlist, pending, invitedOnly, ticketTypeName, takenSpots, isDraft, isArchived, isCancelled, isPast } =
+    detail;
+
+  const closedReason = isCancelled ? "Cancelled" : isArchived ? "Archived" : isDraft ? "Draft" : isPast ? "Event has passed" : null;
 
   return (
     <div className="max-w-md">
       {searchParams.saved && <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>}
       <EventHeader detail={detail} writable={writable} />
       <EventDetailNav eventId={event.id} active="registration" showEdit={writable} />
+
+      <div className="mb-8 grid grid-cols-3 gap-3">
+        <div className="rounded-md border border-grey/15 p-3">
+          <p className="text-xs uppercase tracking-wide text-grey">Registration</p>
+          <p className="mt-1 text-sm font-medium text-ink">{closedReason ? "Closed" : "Open"}</p>
+          {closedReason && <p className="text-xs text-grey">{closedReason}</p>}
+        </div>
+        <div className="rounded-md border border-grey/15 p-3">
+          <p className="text-xs uppercase tracking-wide text-grey">Capacity</p>
+          <p className="mt-1 text-sm font-medium text-ink">
+            {event.capacity != null ? `${takenSpots} of ${event.capacity}` : "Uncapped"}
+          </p>
+        </div>
+        <div className="rounded-md border border-grey/15 p-3">
+          <p className="text-xs uppercase tracking-wide text-grey">Group registration</p>
+          <p className="mt-1 text-sm font-medium text-ink">{event.allowPlusOne ? "On" : "Off"}</p>
+          <p className="text-xs text-grey">{event.approvalRequired ? "Approval required" : "Open join"}</p>
+        </div>
+      </div>
 
       {pending.length > 0 && (
         <div className="mb-8 rounded-md border border-deep-orange/30 bg-orange/5 p-4">
@@ -43,10 +65,13 @@ export default async function EventRegistrationPage({
                 </p>
                 <AttendeeRsvp attendee={a} />
                 {writable && (
-                  <div className="mt-1 flex gap-3">
+                  <div className="mt-1.5 flex items-center gap-3">
                     <form action={approveAttendance}>
                       <input type="hidden" name="id" value={a.id} />
-                      <button type="submit" className="text-xs font-medium text-ink underline">
+                      <button
+                        type="submit"
+                        className="rounded-md bg-orange px-3 py-1 text-xs font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
+                      >
                         Approve
                       </button>
                     </form>

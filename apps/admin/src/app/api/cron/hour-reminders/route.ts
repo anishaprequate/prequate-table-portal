@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   let skipped = 0;
 
   for (const booking of bookings) {
-    if (!booking.member.email) {
+    if (!booking.member.email || !booking.member.emailHourReminders) {
       skipped++;
       continue;
     }

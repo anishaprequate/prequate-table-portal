@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:admin"],
+      "port": 3001
+    },
+    {
+      "name": "member",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:member"],
+      "port": 3000
+    }
+  ]
+}
