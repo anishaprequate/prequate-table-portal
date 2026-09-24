@@ -27,25 +27,40 @@ each one real.
 
 **Member app** (`apps/member`, port 3000) — what a founder sees:
 
-- **Home** — a dashboard summarizing what's next across every area below.
+- **Home** — a dashboard summarizing what's next across The Hour, Events,
+  and Concierge (the three things a member actually acts on — Insight and
+  Messages have their own nav entries instead of a Home card each).
 - **The Hour** — book a session with a partner; one booking per partner per
-  calendar month, current and next month both bookable at once.
+  calendar month, current and next month both bookable at once. Past
+  sessions sit inside a collapsed disclosure that expands on tap; cancelling
+  (member or admin-on-their-behalf) always collects a reason.
 - **Events** — list/calendar views of dinners, quarterlies, and the Annual
   Gathering; RSVP, waitlist, cancellation notices, a post-event survey, and
-  an admin-uploaded photo gallery visible only to attendees.
+  an admin-uploaded photo gallery visible only to attendees. The event page
+  itself is a two-column layout above `lg` (main content plus a sidebar for
+  hosted-by/who's-going/contact-host), single column on mobile with the
+  RSVP action kept above the fold.
 - **Concierge** — request help across Lifestyle/Access/Experience touchpoint
   categories, presented as a guided "what can we help with" flow rather than
-  a form.
-- **Directory** — browse other members (opt-in), request introductions,
-  track requests sent and received.
+  a form; picking a category is genuinely multi-select, but only one
+  category's example panel stays visually expanded at a time.
+- **Directory** — browse other members (opt-in, and never your own profile),
+  request introductions, track requests sent and received.
 - **Insight** — a members-only blog/content feed with bookmarks and a
   Medium-style reading view.
 - **Messages & Notifications** — a direct line to your RM and, if allowed,
   individual partners; notifications are a separate inbox from messages,
-  each one opening straight to the page it's about.
-- **Profile** — contact info, bio, a fixed taxonomy of interests, LinkedIn.
+  each one opening straight to the page it's about. A thread opens already
+  scrolled to the latest message, with a WhatsApp-style arrow send button.
+- **Settings** — Profile (photo, bio, interests, LinkedIn — no longer a
+  separate section), email notification preferences (Hour reminders, event
+  blasts, post-event surveys — each independently toggleable), and privacy
+  (directory visibility, partner messaging).
 - Login via NFC card tap (primary), phone OTP, or an email magic link —
-  see [Auth](#auth) below.
+  see [Auth](#auth) below. Always lands on Home after a returning login.
+- Below the `md` breakpoint, navigation is a hamburger menu opening a
+  full-height drawer (identical items/order/badges as the desktop sidebar);
+  the desktop sidebar itself is unchanged.
 
 **Admin console** (`apps/admin`, port 3001) — run by Owner/RM/Associate
 roles and Partners:
@@ -54,12 +69,19 @@ roles and Partners:
   interests, NFC card provisioning, notes and system timeline, booking
   stats.
 - **Events** — a hub (Live/Draft/Archive/Import-from-Luma), each event its
-  own hub (Overview/Edit/Registration/Guests/Blasts) — registration
-  management, a read-only guest roster with CSV export, one-off message
-  blasts with a sent history, and event cancellation as its own state
-  (distinct from deleting) that notifies every RSVP'd member.
-- **Bookings** — The Hour, admin-side: reschedule, cancel, no-show tracking.
-  A check-in kiosk view for tapping members in with NFC.
+  own hub (Overview/Edit/Registration/Guests/Blasts/**Insights**) —
+  registration management, a read-only guest roster with CSV export,
+  one-off message blasts (shown as a chat-style thread with a "System
+  messages" note on the real post-event-survey cadence), and event
+  cancellation as its own state (distinct from deleting) that notifies
+  every RSVP'd member. Overview/Guests/Insights share a stats bar
+  (Going/Checked-in/Pending/Waitlist + a capacity bar); Insights charts
+  registrations-over-time, ticket-type split, and status breakdown from
+  real `EventAttendance` data only — no page-view/traffic metric exists or
+  is implied anywhere.
+- **Bookings** — The Hour, admin-side: reschedule, cancel (collecting a
+  required reason, same as the member side), no-show tracking. A check-in
+  kiosk view for tapping members in with NFC.
 - **Concierge** — the request queue, category catalog and SLA config.
   categories management.
 - **Introductions** — review and route member-to-member introduction
@@ -209,13 +231,23 @@ A few soft-state conventions worth knowing before touching this schema:
   row — history stays intact, restorable from Admin > Events > Archive.
 - Cancelling an `Event` (`cancelledAt` / `cancellationReason`) is a
   separate state from archiving — a cancelled event is still visible to
-  members who'd RSVP'd, just marked as cancelled.
+  members who'd RSVP'd, just marked as cancelled. `Booking` (The Hour)
+  carries the same pattern — `cancelledAt` / `cancellationReason` — and
+  unlike the event form, a reason is required at the form level on both
+  sides (member self-cancel and admin cancel-on-behalf).
 - `Notification` and `Message` are deliberately separate systems (see
   `packages/core/src/notifications.ts`) — a new message has its own
   unread-count signal (`Message.read`) and never creates a `Notification`;
   `Notification` is reserved for everything else (event cancellations,
   survey prompts, inactivity flags), each with a `relatedEntityType` /
   `relatedEntityId` the notification opens straight to.
+- `User.emailHourReminders` / `emailEventBlasts` / `emailEventSurveys`
+  (each `Boolean @default(true)`) gate only the *email* side of the three
+  real ambient sends (`hour-reminders` and `event-surveys` crons,
+  `blastEventMessage`) — the in-app `Message`/`Notification`/`EventBlast`
+  records they also produce are unaffected either way. Transactional email
+  (the magic-link login, a booking's own confirmation) always sends
+  regardless of these.
 
 ## Integrations
 
@@ -252,7 +284,11 @@ an external scheduler — nothing in this codebase calls them on its own:
 [`docs/design-system.md`](docs/design-system.md) is the standing reference
 for navigation architecture, the card-as-hub pattern, and the
 visual-hierarchy toolkit used across both apps — read it before
-restructuring or adding a page, not just for the admin console.
+restructuring or adding a page, not just for the admin console. Its
+"Scoped exceptions" section documents the two intentional departures from
+those defaults: the member event page's two-column sidebar layout, and the
+rule that any Insights-style tab must be built only from data a real
+Prisma model can answer.
 
 ## Known limitations
 
