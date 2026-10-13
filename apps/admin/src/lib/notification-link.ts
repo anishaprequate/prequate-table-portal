@@ -12,8 +12,6 @@ export function notificationLink(notification: {
       return id ? `/members/${id}` : "/members";
     case "event":
       return id ? `/events/${id}` : "/events";
-    case "concierge":
-      return "/concierge";
     default:
       return "/reports";
   }

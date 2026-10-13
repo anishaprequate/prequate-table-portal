@@ -17,8 +17,6 @@ export default async function ReportsHubPage() {
   const avgRating = ratedTiers.length
     ? Math.round((ratedTiers.reduce((s, t) => s + (t.avgRating ?? 0), 0) / ratedTiers.length) * 10) / 10
     : null;
-  const totalConciergeVolume = data.conciergeByMonth.reduce((sum, m) => sum + m.volume, 0);
-  const topService = [...data.servicesByGroup].sort((a, b) => b.count - a.count)[0];
   const totalInsightViews = data.insightReadership.reduce((sum, p) => sum + p.views, 0);
   const totalIntroRequests = data.introByMonth.reduce((sum, m) => sum + m.count, 0);
 
@@ -42,14 +40,6 @@ export default async function ReportsHubPage() {
           facts={[
             { label: "RSVP'd (all tiers)", value: totalRsvpd },
             { label: "Avg survey rating", value: avgRating != null ? `${avgRating}/5` : "—" },
-          ]}
-        />
-        <HubCard
-          href="/reports/concierge"
-          title="Concierge"
-          facts={[
-            { label: "Requests (6 months)", value: totalConciergeVolume },
-            { label: "Top category", value: topService?.group ?? "—" },
           ]}
         />
         <HubCard

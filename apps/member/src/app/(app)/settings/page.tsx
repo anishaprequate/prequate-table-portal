@@ -25,13 +25,13 @@ export default async function SettingsPage({
       <PageHero title="Settings" />
 
       {searchParams.saved && (
-        <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>
+        <p className="card mb-6 animate-fade-up bg-foil/5 px-3 py-2 text-sm text-ink">Saved.</p>
       )}
 
-      <div className="mb-8 rounded-md border border-grey/15 p-4">
-        <p className="mb-4 text-xs uppercase tracking-wide text-grey">Profile</p>
+      <div className="card mb-8 p-5">
+        <p className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Profile</p>
         <form action={updateProfile} className="flex flex-col gap-6">
-          <p className="-mt-2 text-xs text-grey">Seat {formatSeatDisplay(user.seatNumber)}</p>
+          <p className="-mt-2 text-xs text-taupe">Seat {formatSeatDisplay(user.seatNumber)}</p>
 
           <div className="flex items-center gap-4">
             {user.photoUrl ? (
@@ -39,11 +39,11 @@ export default async function SettingsPage({
               <img
                 src={user.photoUrl}
                 alt=""
-                className="h-16 w-16 rounded-full object-cover"
+                className="h-16 w-16 rounded-full object-cover ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50"
                 draggable={false}
               />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange/10 font-display text-xl text-ink">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-foil/10 font-display text-xl text-ink ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50">
                 {user.name.charAt(0)}
               </div>
             )}
@@ -55,42 +55,22 @@ export default async function SettingsPage({
 
           <label className="flex flex-col gap-1.5 text-sm">
             Name
-            <input
-              type="text"
-              name="name"
-              defaultValue={user.name}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
+            <input type="text" name="name" defaultValue={user.name} className="input-field" />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm">
             Seat type
-            <input
-              type="text"
-              name="seatType"
-              defaultValue={user.seatType ?? ""}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
+            <input type="text" name="seatType" defaultValue={user.seatType ?? ""} className="input-field" />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm">
             Email
-            <input
-              type="email"
-              name="email"
-              defaultValue={user.email ?? ""}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
+            <input type="email" name="email" defaultValue={user.email ?? ""} className="input-field" />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm">
             Bio
-            <textarea
-              name="bio"
-              defaultValue={user.bio ?? ""}
-              rows={4}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
+            <textarea name="bio" defaultValue={user.bio ?? ""} rows={4} className="input-field" />
           </label>
 
           <fieldset className="flex flex-col gap-2 text-sm">
@@ -99,14 +79,14 @@ export default async function SettingsPage({
               {categories.map((category) => (
                 <label
                   key={category.id}
-                  className="flex items-center gap-2 rounded-md border border-grey/30 px-3 py-1.5 text-sm text-ink has-[:checked]:border-orange has-[:checked]:bg-orange/10"
+                  className="flex items-center gap-2 rounded-md border border-taupe/25 px-3 py-1.5 text-sm text-ink transition-all duration-300 has-[:checked]:border-foil has-[:checked]:bg-foil/10"
                 >
                   <input
                     type="checkbox"
                     name="interests"
                     value={category.id}
                     defaultChecked={myInterestIds.has(category.id)}
-                    className="h-3.5 w-3.5 accent-orange"
+                    className="h-3.5 w-3.5 accent-foil"
                   />
                   {category.label}
                 </label>
@@ -114,29 +94,26 @@ export default async function SettingsPage({
             </div>
           </fieldset>
 
-          <button
-            type="submit"
-            className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
-          >
+          <button type="submit" className="btn-primary w-fit">
             Save
           </button>
         </form>
       </div>
 
       <form action={updateSettings} className="flex flex-col gap-8">
-        <div className="rounded-md border border-grey/15 p-4">
-          <p className="mb-4 text-xs uppercase tracking-wide text-grey">Notifications</p>
+        <div className="card p-5">
+          <p className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Notifications</p>
           <div className="flex flex-col gap-5">
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
                 name="emailHourReminders"
                 defaultChecked={user.emailHourReminders}
-                className="mt-0.5 h-4 w-4 accent-orange"
+                className="mt-0.5 h-4 w-4 accent-foil"
               />
               <span>
                 Email me 24 hours before The Hour
-                <span className="block text-xs text-grey">A reminder before each confirmed session.</span>
+                <span className="block text-xs text-taupe">A reminder before each confirmed session.</span>
               </span>
             </label>
 
@@ -145,11 +122,11 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="emailEventBlasts"
                 defaultChecked={user.emailEventBlasts}
-                className="mt-0.5 h-4 w-4 accent-orange"
+                className="mt-0.5 h-4 w-4 accent-foil"
               />
               <span>
                 Email me event updates and blasts
-                <span className="block text-xs text-grey">
+                <span className="block text-xs text-taupe">
                   Messages the team sends to everyone registered for an event.
                 </span>
               </span>
@@ -160,11 +137,11 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="emailEventSurveys"
                 defaultChecked={user.emailEventSurveys}
-                className="mt-0.5 h-4 w-4 accent-orange"
+                className="mt-0.5 h-4 w-4 accent-foil"
               />
               <span>
                 Email me post-event surveys
-                <span className="block text-xs text-grey">
+                <span className="block text-xs text-taupe">
                   Sent a day after an event you attended, with one reminder.
                 </span>
               </span>
@@ -172,19 +149,19 @@ export default async function SettingsPage({
           </div>
         </div>
 
-        <div className="rounded-md border border-grey/15 p-4">
-          <p className="mb-4 text-xs uppercase tracking-wide text-grey">Privacy</p>
+        <div className="card p-5">
+          <p className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Privacy</p>
           <div className="flex flex-col gap-5">
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
                 name="showInDirectory"
                 defaultChecked={!user.directoryOptOut}
-                className="mt-0.5 h-4 w-4 accent-orange"
+                className="mt-0.5 h-4 w-4 accent-foil"
               />
               <span>
                 Show me in the member directory
-                <span className="block text-xs text-grey">
+                <span className="block text-xs text-taupe">
                   Other members can see your name, seat type, and bio.
                 </span>
               </span>
@@ -195,11 +172,11 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="allowPartnerMessages"
                 defaultChecked={user.allowPartnerMessages}
-                className="mt-0.5 h-4 w-4 accent-orange"
+                className="mt-0.5 h-4 w-4 accent-foil"
               />
               <span>
                 Let partners message me directly
-                <span className="block text-xs text-grey">
+                <span className="block text-xs text-taupe">
                   Your relationship manager can always reach you either way.
                 </span>
               </span>
@@ -207,10 +184,7 @@ export default async function SettingsPage({
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
-        >
+        <button type="submit" className="btn-primary w-fit">
           Save
         </button>
       </form>

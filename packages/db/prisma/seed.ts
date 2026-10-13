@@ -10,95 +10,6 @@ const Role = {
   ADMIN_ASSOCIATE: "ADMIN_ASSOCIATE",
 } as const;
 
-const CONCIERGE_CATALOG: Array<{
-  group: string;
-  category: string;
-  examples: string[];
-}> = [
-  {
-    group: "Lifestyle Touchpoints",
-    category: "Travel",
-    examples: [
-      "Itinerary planning",
-      "Guided tours",
-      "Chartered travel",
-      "Retreats",
-      "Flights and train concierge",
-    ],
-  },
-  {
-    group: "Lifestyle Touchpoints",
-    category: "Lifestyle services",
-    examples: [
-      "Personal shopping and gifting",
-      "Expert consultations",
-      "Daily errands",
-      "Unusual requests",
-    ],
-  },
-  {
-    group: "Lifestyle Touchpoints",
-    category: "Wellness",
-    examples: ["Retreats", "Priority booking", "Specialist access"],
-  },
-  {
-    group: "Access Touchpoints",
-    category: "Restaurants",
-    examples: [
-      "Reservations",
-      "Dietary accommodation",
-      "Cuisine preference",
-      "Private chef access",
-    ],
-  },
-  {
-    group: "Access Touchpoints",
-    category: "Exclusive access",
-    examples: [
-      "Sold out shows and events",
-      "Ceremonies and awards",
-      "Behind the scenes",
-      "Gallery and auction previews",
-    ],
-  },
-  {
-    group: "Access Touchpoints",
-    category: "Education",
-    examples: ["Consulting experts", "Private tuition", "Education networks"],
-  },
-  {
-    group: "Access Touchpoints",
-    category: "Expert network",
-    examples: [
-      "Subject matter experts",
-      "Researchers",
-      "Specialist consultants (art experts, physicians, architects, and similar)",
-    ],
-  },
-  {
-    group: "Experience Touchpoints",
-    category: "Private events",
-    examples: [
-      "End to end planning and execution for member events and unique requests",
-    ],
-  },
-  {
-    group: "Experience Touchpoints",
-    category: "Art and culture",
-    examples: [
-      "Artist network",
-      "Artisanal vendors",
-      "Curation and advisory access",
-      "Gallery and auction house connections",
-    ],
-  },
-  {
-    group: "Experience Touchpoints",
-    category: "Sport",
-    examples: ["VIP club access", "Court access", "Player access", "Expert coaching"],
-  },
-];
-
 // Seeded from Anisha's CPG-FMCG sourcing database in Notion ("CPG-FMCG Table
 // Leads — ₹100-1000Cr Unfunded (v2)"), filtered to the 11 rows marked
 // "Verified by Anisha". Real names and companies; bios are written fresh
@@ -120,7 +31,6 @@ const MEMBERS = [
     email: "himmath.jain@example.com",
     chipUid: "CHIP-101",
     bio: "Co-founder of a single-ingredient protein supplement brand out of Bengaluru, relaunched in 2018 and among the fastest-growing in its category.",
-    points: 0,
   },
   {
     name: "Deeksha S Kumar",
@@ -130,7 +40,6 @@ const MEMBERS = [
     email: "deeksha.kumar@example.com",
     chipUid: "CHIP-102",
     bio: "Second-generation Managing Director of a spice manufacturer her parents founded in 2006, now FSSC 22000 and USFDA certified.",
-    points: 0,
   },
   {
     name: "Arvind Varchaswi",
@@ -140,7 +49,6 @@ const MEMBERS = [
     email: "arvind.varchaswi@example.com",
     chipUid: "CHIP-103",
     bio: "Managing Director of an Ayurvedic wellness group spanning manufacturing, a hospital, and Panchakarma centers, with consistent double-digit growth.",
-    points: 0,
   },
   {
     name: "Nagaraja Rao",
@@ -150,7 +58,6 @@ const MEMBERS = [
     email: "nagaraja.rao@example.com",
     chipUid: "CHIP-104",
     bio: "Third-generation director of a Bengaluru coffee roasting business his grandfather started as a grocery in 1956.",
-    points: 0,
   },
   {
     name: "Navrathan Jain",
@@ -160,7 +67,6 @@ const MEMBERS = [
     email: "navrathan.jain@example.com",
     chipUid: "CHIP-105",
     bio: "Managing Director of a family-run dairy ingredients manufacturer based in Bengaluru.",
-    points: 0,
   },
   {
     name: "Nick Pandey",
@@ -170,7 +76,6 @@ const MEMBERS = [
     email: "nick.pandey@example.com",
     chipUid: "CHIP-106",
     bio: "Co-founder of an agri-processing company run from a factory near Tumkur, built alongside a former UN agricultural researcher.",
-    points: 0,
   },
   {
     name: "Milan Shah",
@@ -180,7 +85,6 @@ const MEMBERS = [
     email: "milan.shah@example.com",
     chipUid: "CHIP-107",
     bio: "Managing Director of a long-established Bengaluru herbs and spice exporter, now also building a consumer spice brand.",
-    points: 0,
   },
   {
     name: "Firoz H M",
@@ -190,7 +94,6 @@ const MEMBERS = [
     email: "firoz.hm@example.com",
     chipUid: "CHIP-108",
     bio: "Founder of a Bengaluru herbal extracts and nutraceutical ingredients manufacturer, exporting from its KIADB facility.",
-    points: 0,
   },
   {
     name: "Subrata Dutta",
@@ -200,7 +103,6 @@ const MEMBERS = [
     email: "subrata.dutta@example.com",
     chipUid: "CHIP-109",
     bio: "Founder of a nutrition and personal care brand built on a direct-selling model, launched in 2018.",
-    points: 0,
   },
   {
     name: "Abhilash Thomas",
@@ -210,7 +112,6 @@ const MEMBERS = [
     email: "abhilash.thomas@example.com",
     chipUid: "CHIP-110",
     bio: "Co-founder and CEO of a direct-selling health sciences company, and an occasional public speaker on entrepreneurship.",
-    points: 0,
   },
   {
     name: "Sunil Attavar",
@@ -220,7 +121,6 @@ const MEMBERS = [
     email: "sunil.attavar@example.com",
     chipUid: "CHIP-111",
     bio: "Chairman connected to a 45-year Bengaluru oral care manufacturer behind the Enafix brand.",
-    points: 0,
   },
 ];
 
@@ -240,8 +140,6 @@ const PARTNERS = [
 async function main() {
   await prisma.notification.deleteMany();
   await prisma.message.deleteMany();
-  await prisma.conciergeRequest.deleteMany();
-  await prisma.conciergeCategory.deleteMany();
   await prisma.eventAttendance.deleteMany();
   await prisma.event.deleteMany();
   await prisma.brief.deleteMany();
@@ -281,20 +179,7 @@ async function main() {
     },
   });
 
-  for (const [index, entry] of CONCIERGE_CATALOG.entries()) {
-    await prisma.conciergeCategory.create({
-      data: {
-        group: entry.group,
-        category: entry.category,
-        examples: JSON.stringify(entry.examples),
-        sortOrder: index,
-      },
-    });
-  }
-
-  console.log(
-    `Seeded ${MEMBERS.length} members, ${PARTNERS.length} partners, 2 admins, ${CONCIERGE_CATALOG.length} concierge categories.`,
-  );
+  console.log(`Seeded ${MEMBERS.length} members, ${PARTNERS.length} partners, 2 admins.`);
 }
 
 main()

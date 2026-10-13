@@ -36,7 +36,7 @@ export function isFullAdmin(role: string): boolean {
 }
 
 // Associates get the same breadth of view as a full admin (members,
-// bookings, events, concierge, insight, messages, settings) but can't
+// bookings, events, insight, messages, settings) but can't
 // change anything — use this for page-level read access instead of
 // isFullAdmin wherever an associate should be let in to look.
 export function canView(role: string): boolean {

@@ -4,7 +4,6 @@ const SECTIONS = [
   { href: "/reports", label: "Overview" },
   { href: "/reports/hour", label: "The Hour" },
   { href: "/reports/events", label: "Events" },
-  { href: "/reports/concierge", label: "Concierge" },
   { href: "/reports/members", label: "Members" },
   { href: "/reports/directory-content", label: "Directory & Content" },
 ] as const;

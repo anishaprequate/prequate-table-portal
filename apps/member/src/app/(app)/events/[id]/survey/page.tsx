@@ -29,7 +29,7 @@ export default async function EventSurveyPage({
   if (!event || !attendance?.joined) {
     return (
       <div className="max-w-md">
-        <p className="mb-6 text-sm text-grey">This survey isn&apos;t available anymore.</p>
+        <p className="mb-6 text-sm text-taupe">This survey isn&apos;t available anymore.</p>
         <BackLink href="/events" />
       </div>
     );
@@ -42,20 +42,18 @@ export default async function EventSurveyPage({
       <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">
         How was it?
       </h1>
-      <p className="mb-10 text-sm text-grey">{event.title}</p>
+      <p className="mb-10 text-sm text-taupe">{event.title}</p>
 
       {searchParams.saved && (
-        <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">
-          Thanks — that's noted.
-        </p>
+        <p className="card mb-6 animate-fade-up bg-foil/5 px-3 py-2 text-sm text-ink">Thanks — that's noted.</p>
       )}
       {searchParams.error === "rating" && (
-        <p className="mb-6 text-sm text-deep-orange">Pick a rating from 1 to 5 before sending.</p>
+        <p className="mb-6 text-sm text-clay">Pick a rating from 1 to 5 before sending.</p>
       )}
 
       {alreadyResponded ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-grey">
+          <p className="text-sm text-taupe">
             You rated this {attendance.surveyRating} out of 5.
             {attendance.surveyFeedback && (
               <>
@@ -75,7 +73,7 @@ export default async function EventSurveyPage({
               {[1, 2, 3, 4, 5].map((n) => (
                 <label
                   key={n}
-                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-grey/30 text-sm font-medium text-ink has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-paper"
+                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-taupe/25 text-sm font-medium text-ink transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-foil/50 has-[:checked]:border-transparent has-[:checked]:bg-ink has-[:checked]:text-bone has-[:checked]:shadow-md"
                 >
                   <input type="radio" name="rating" value={n} required className="hidden" />
                   {n}
@@ -86,17 +84,10 @@ export default async function EventSurveyPage({
 
           <label className="flex flex-col gap-1.5 text-sm">
             Anything you&apos;d want to see different next time? (optional)
-            <textarea
-              name="feedback"
-              rows={3}
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
+            <textarea name="feedback" rows={3} className="input-field" />
           </label>
 
-          <button
-            type="submit"
-            className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
-          >
+          <button type="submit" className="btn-primary w-fit">
             Send
           </button>
         </form>

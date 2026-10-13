@@ -43,15 +43,19 @@ export default async function MessageThreadPage({ params }: { params: { thread: 
   return (
     <div className="flex h-[calc(100dvh-5rem)] max-w-lg flex-col md:h-[calc(100dvh-12rem)]">
       <div className="flex flex-shrink-0 items-start gap-3 pb-4">
-        <Link href="/messages" aria-label="Back to messages" className="mt-2 flex-shrink-0 text-grey transition hover:text-ink">
+        <Link
+          href="/messages"
+          aria-label="Back to messages"
+          className="mt-2 flex-shrink-0 rounded-md p-1 text-taupe transition-all duration-300 hover:-translate-x-0.5 hover:bg-ink/5 hover:text-ink"
+        >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12.5 4.5L6 10l6.5 5.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
         <div>
           <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">{title}</h1>
-          <p className="text-sm text-grey">
-            {isRm ? "Separate from concierge." : "A direct line, separate from your RM."}
+          <p className="text-sm text-taupe">
+            {isRm ? "A direct line to the team." : "A direct line, separate from your RM."}
           </p>
         </div>
       </div>
@@ -73,12 +77,12 @@ export default async function MessageThreadPage({ params }: { params: { thread: 
           required
           autoFocus
           placeholder={isRm ? "Write to your RM..." : `Write to ${partner!.name}...`}
-          className="w-full flex-1 rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
+          className="input-field w-full flex-1 !py-2"
         />
         <button
           type="submit"
           aria-label="Send"
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-orange text-ink transition hover:bg-deep-orange hover:text-paper"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-foil text-ink shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-clay hover:text-bone hover:shadow-md active:translate-y-0"
         >
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path d="M10 15.5V4.5M10 4.5L4.5 10M10 4.5L15.5 10" stroke="currentColor" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />

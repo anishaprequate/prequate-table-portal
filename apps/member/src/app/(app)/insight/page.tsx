@@ -52,12 +52,9 @@ export default async function InsightPage({
           name="q"
           defaultValue={q}
           placeholder="Search by title or tag"
-          className="w-full rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
+          className="input-field"
         />
-        <button
-          type="submit"
-          className="flex-shrink-0 rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
-        >
+        <button type="submit" className="btn-secondary flex-shrink-0 !px-4 !py-2">
           Search
         </button>
       </form>
@@ -65,27 +62,30 @@ export default async function InsightPage({
       <div className="mb-8 flex gap-4 text-sm">
         <Link
           href={q ? `/insight?q=${encodeURIComponent(q)}` : "/insight"}
-          className={!bookmarkedOnly ? "font-medium text-ink" : "text-grey hover:text-ink"}
+          className={`transition-colors duration-300 ${!bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
         >
           All
         </Link>
         <Link
           href={q ? `/insight?filter=bookmarked&q=${encodeURIComponent(q)}` : "/insight?filter=bookmarked"}
-          className={bookmarkedOnly ? "font-medium text-ink" : "text-grey hover:text-ink"}
+          className={`transition-colors duration-300 ${bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
         >
           Bookmarked
         </Link>
       </div>
 
-      <ul className="flex flex-col divide-y divide-grey/15">
+      <ul className="flex flex-col divide-y divide-taupe/15">
         {filtered.map((post) => {
           const tags: string[] = post.tags ? JSON.parse(post.tags) : [];
           return (
-            <li key={post.id} className="py-5">
-              <Link href={`/insight/${post.id}`} className="block">
+            <li key={post.id}>
+              <Link
+                href={`/insight/${post.id}`}
+                className="-mx-3 block rounded-md px-3 py-5 transition-colors duration-300 hover:bg-ink/[0.03]"
+              >
                 <p className="font-display text-2xl italic leading-tight text-ink">{post.title}</p>
-                {post.subheading && <p className="mt-1 text-sm text-grey">{post.subheading}</p>}
-                <p className="text-xs text-grey">
+                {post.subheading && <p className="mt-1 text-sm text-taupe">{post.subheading}</p>}
+                <p className="text-xs text-taupe">
                   {post.author.name} · {formatDateOnly(post.createdAt)}
                 </p>
                 {tags.length > 0 && (
@@ -93,7 +93,7 @@ export default async function InsightPage({
                     {tags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full bg-orange/10 px-2.5 py-1 text-xs text-deep-orange"
+                        className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-clay"
                       >
                         {tag}
                       </span>
@@ -105,7 +105,7 @@ export default async function InsightPage({
           );
         })}
         {filtered.length === 0 && (
-          <p className="py-4 text-sm text-grey">
+          <p className="py-4 text-sm text-taupe">
             {bookmarkedOnly ? "No bookmarked posts yet." : "Nothing here yet."}
           </p>
         )}

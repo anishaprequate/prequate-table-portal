@@ -46,38 +46,36 @@ export default async function TheHourPage({
   return (
     <div className="max-w-2xl">
       {searchParams.confirmed && (
-        <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">
-          Session confirmed.
-        </p>
+        <p className="card mb-6 animate-fade-up bg-foil/5 px-3 py-2 text-sm text-ink">Session confirmed.</p>
       )}
 
       <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PageHero title="The" accent="Hour." subtitle="Time with a partner, on your terms." />
         {bookHref ? (
-          <Link
-            href={bookHref}
-            className="w-fit flex-shrink-0 rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
-          >
+          <Link href={bookHref} className="btn-primary w-fit flex-shrink-0 !bg-foil !text-ink hover:!text-bone">
             Book a session
           </Link>
         ) : (
-          <p className="text-sm text-grey">
+          <p className="text-sm text-taupe">
             You've booked your Hour for {formatMonthLabel(now)} and {formatMonthLabel(nextMonthStart)}.
           </p>
         )}
       </div>
 
       <section className="mb-12">
-        <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Upcoming</h2>
+        <h2 className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Upcoming</h2>
         {upcoming.length === 0 && (
-          <p className="text-sm text-grey">Nothing booked. Start with the button above.</p>
+          <p className="text-sm text-taupe">Nothing booked. Start with the button above.</p>
         )}
-        <ul className="flex flex-col divide-y divide-grey/15">
+        <ul className="flex flex-col divide-y divide-taupe/15">
           {upcoming.map((booking) => (
-            <li key={booking.id} className="py-4">
-              <Link href={`/the-hour/${booking.id}`} className="block">
+            <li key={booking.id}>
+              <Link
+                href={`/the-hour/${booking.id}`}
+                className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+              >
                 <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
-                <p className="text-sm text-grey">{formatSlot(booking.startTime)}</p>
+                <p className="text-sm text-taupe">{formatSlot(booking.startTime)}</p>
               </Link>
             </li>
           ))}
@@ -85,26 +83,29 @@ export default async function TheHourPage({
       </section>
 
       <details className="group">
-        <summary className="mb-4 flex cursor-pointer list-none items-center gap-2 text-xs uppercase tracking-wide text-grey [&::-webkit-details-marker]:hidden">
+        <summary className="mb-4 flex cursor-pointer list-none items-center gap-2 text-xs uppercase tracking-[0.28em] text-taupe transition-colors duration-300 hover:text-ink [&::-webkit-details-marker]:hidden">
           Past ({past.length})
           <svg
             width="10"
             height="10"
             viewBox="0 0 10 10"
-            className="transition group-open:rotate-180"
+            className="transition-transform duration-300 ease-out group-open:rotate-180"
           >
             <path d="M1.5 3.5L5 7L8.5 3.5" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </summary>
         {past.length === 0 ? (
-          <p className="text-sm text-grey">No sessions yet.</p>
+          <p className="text-sm text-taupe">No sessions yet.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-grey/15">
+          <ul className="flex animate-fade-in flex-col divide-y divide-taupe/15">
             {past.map((booking) => (
-              <li key={booking.id} className="py-4">
-                <Link href={`/the-hour/${booking.id}`} className="block">
+              <li key={booking.id}>
+                <Link
+                  href={`/the-hour/${booking.id}`}
+                  className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+                >
                   <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-taupe">
                     {formatSlot(booking.startTime)}
                     {booking.status === "CANCELLED" && " — cancelled"}
                   </p>

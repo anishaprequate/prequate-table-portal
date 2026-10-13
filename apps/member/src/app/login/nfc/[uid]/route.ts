@@ -30,5 +30,10 @@ export async function GET(request: Request, { params }: { params: { uid: string 
   });
 
   const landingRoute = await landingRouteFor(user.id);
-  return NextResponse.redirect(new URL(landingRoute, request.url));
+  // The physical plate and the on-screen seat should feel like the same
+  // thing — a real NFC tap (or its simulated stand-in) carries a flag so
+  // the Room can animate the member's own seat in first, before the rest
+  // of the room settles. A normal in-app visit to Home gets no flourish.
+  const destination = landingRoute === "/home" ? "/home?arrived=1" : landingRoute;
+  return NextResponse.redirect(new URL(destination, request.url));
 }

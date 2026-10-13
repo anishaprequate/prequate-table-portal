@@ -11,7 +11,6 @@ const FULL_ADMIN_NAV = [
   { href: "/members", label: "Members" },
   { href: "/bookings", label: "Bookings" },
   { href: "/events", label: "Events" },
-  { href: "/concierge", label: "Concierge" },
   { href: "/introductions", label: "Introductions" },
   { href: "/insight", label: "Insight" },
   { href: "/messages", label: "Messages" },

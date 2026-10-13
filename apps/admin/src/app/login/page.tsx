@@ -20,7 +20,7 @@ export default async function AdminLoginPage({
         <PageHero
           title="Admin"
           accent="console"
-          subtitle="Bookings, events, concierge, and content."
+          subtitle="Bookings, events, and content."
         />
 
         {searchParams.error === "invalid" && (

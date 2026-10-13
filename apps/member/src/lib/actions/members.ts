@@ -10,7 +10,7 @@ export async function requestIntroduction(formData: FormData) {
   if (!user) redirect("/login");
 
   const targetId = String(formData.get("targetId") ?? "");
-  if (!targetId || targetId === user.id) redirect("/directory");
+  if (!targetId || targetId === user.id) redirect("/members");
 
   const message = String(formData.get("message") ?? "").trim() || null;
   const preferredChannel = String(formData.get("preferredChannel") ?? "").trim() || null;
@@ -25,9 +25,9 @@ export async function requestIntroduction(formData: FormData) {
     });
   }
 
-  revalidatePath(`/directory/${targetId}`);
-  revalidatePath("/directory");
-  redirect(`/directory/${targetId}?requested=1`);
+  revalidatePath(`/members/${targetId}`);
+  revalidatePath("/members");
+  redirect(`/members/${targetId}?requested=1`);
 }
 
 export async function respondToIntroduction(formData: FormData) {
@@ -36,13 +36,13 @@ export async function respondToIntroduction(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const decision = String(formData.get("decision") ?? "");
-  if (decision !== "ACCEPTED" && decision !== "DECLINED") redirect("/directory?tab=received");
+  if (decision !== "ACCEPTED" && decision !== "DECLINED") redirect("/members?tab=received");
 
   const request = await prisma.introductionRequest.findUnique({ where: { id } });
-  if (!request || request.targetId !== user.id || !request.routedAt) redirect("/directory?tab=received");
+  if (!request || request.targetId !== user.id || !request.routedAt) redirect("/members?tab=received");
 
   await prisma.introductionRequest.update({ where: { id }, data: { status: decision } });
 
-  revalidatePath("/directory");
-  redirect("/directory?tab=received&responded=1");
+  revalidatePath("/members");
+  redirect("/members?tab=received&responded=1");
 }

@@ -78,7 +78,7 @@ export default async function EventDetailPage({
         <img
           src={event.imageUrl}
           alt=""
-          className="mb-6 h-[220px] w-full rounded-md object-cover"
+          className="mb-6 h-[220px] w-full rounded-lg object-cover shadow-md"
           draggable={false}
         />
       )}
@@ -86,19 +86,19 @@ export default async function EventDetailPage({
       <h1 className="mb-1 font-display text-4xl italic leading-[1.05] text-ink sm:text-5xl">
         {event.title}
         {isCancelled && (
-          <span className="ml-3 align-middle rounded-full bg-grey/10 px-2.5 py-1 text-sm font-sans not-italic text-grey">
+          <span className="ml-3 align-middle rounded-full bg-taupe/10 px-2.5 py-1 text-sm font-sans not-italic text-taupe">
             Cancelled
           </span>
         )}
       </h1>
-      <p className="mb-10 text-sm text-grey">
+      <p className="mb-10 text-sm text-taupe">
         {formatSlot(event.startTime)}
         {event.location && ` · ${event.location}`}
         {spotsLeft !== null && !isPast && !isCancelled && ` · ${Math.max(spotsLeft, 0)} spot${spotsLeft === 1 ? "" : "s"} left`}
       </p>
 
       {isCancelled && (
-        <p className="mb-8 rounded-md bg-grey/10 px-3 py-2 text-sm text-ink">
+        <p className="card mb-8 bg-taupe/5 px-3 py-2 text-sm text-ink">
           This event has been cancelled.
           {event.cancellationReason && (
             <>
@@ -110,7 +110,7 @@ export default async function EventDetailPage({
       )}
 
       {event.description && (
-        <div className="mb-6 rounded-md border border-grey/15 p-4">
+        <div className="card mb-6 p-5">
           <div
             className="prose-editor text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: event.description }}
@@ -118,17 +118,17 @@ export default async function EventDetailPage({
         </div>
       )}
 
-      {!canSee && !isCancelled && <p className="mb-8 text-sm text-grey">This one is invite-only.</p>}
+      {!canSee && !isCancelled && <p className="mb-8 text-sm text-taupe">This one is invite-only.</p>}
 
       {canSee && !isPast && !isCancelled &&
         (isPendingApproval ? (
-          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+          <div className="mb-6 rounded-lg border border-foil/30 bg-foil/5 p-5 shadow-sm">
             <p className="text-sm text-ink">
               Your registration is pending approval. We&apos;ll let you know once it&apos;s confirmed.
             </p>
           </div>
         ) : hasJoined ? (
-          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+          <div className="mb-6 rounded-lg border border-foil/30 bg-foil/5 p-5 shadow-sm">
             <p className="text-sm text-ink">You&apos;re on the list for this one — added to your calendar.</p>
             {(myGuestNames.length > 0 ||
               attendance?.arrivalDate ||
@@ -138,31 +138,31 @@ export default async function EventDetailPage({
               <dl className="mt-3 flex flex-col gap-2 text-sm">
                 {myGuestNames.length > 0 && (
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-grey">Bringing</dt>
+                    <dt className="text-xs uppercase tracking-[0.28em] text-taupe">Bringing</dt>
                     <dd>{myGuestNames.join(", ")}</dd>
                   </div>
                 )}
                 {attendance?.arrivalDate && (
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-grey">Arriving</dt>
+                    <dt className="text-xs uppercase tracking-[0.28em] text-taupe">Arriving</dt>
                     <dd>{formatDateOnly(attendance.arrivalDate)}</dd>
                   </div>
                 )}
                 {attendance?.dietaryNotes && (
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-grey">Dietary</dt>
+                    <dt className="text-xs uppercase tracking-[0.28em] text-taupe">Dietary</dt>
                     <dd>{attendance.dietaryNotes}</dd>
                   </div>
                 )}
                 {attendance?.travelNotes && (
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-grey">Travel / accommodation</dt>
+                    <dt className="text-xs uppercase tracking-[0.28em] text-taupe">Travel / accommodation</dt>
                     <dd>{attendance.travelNotes}</dd>
                   </div>
                 )}
                 {myAnswers.map((a) => (
                   <div key={a.question}>
-                    <dt className="text-xs uppercase tracking-wide text-grey">{a.question}</dt>
+                    <dt className="text-xs uppercase tracking-[0.28em] text-taupe">{a.question}</dt>
                     <dd>{a.answer || "—"}</dd>
                   </div>
                 ))}
@@ -170,19 +170,25 @@ export default async function EventDetailPage({
             )}
             <form action={cancelEventRsvp} className="mt-4">
               <input type="hidden" name="eventId" value={event.id} />
-              <button type="submit" className="text-sm text-grey underline hover:text-ink">
+              <button
+                type="submit"
+                className="text-sm text-taupe underline decoration-taupe/40 underline-offset-2 transition-colors duration-300 hover:text-ink hover:decoration-ink"
+              >
                 Cancel RSVP
               </button>
             </form>
           </div>
         ) : isWaitlisted ? (
-          <div className="mb-6 rounded-md border border-orange/30 bg-orange/5 p-4">
+          <div className="mb-6 rounded-lg border border-foil/30 bg-foil/5 p-5 shadow-sm">
             <p className="text-sm text-ink">
               This one&apos;s full — you&apos;re on the waitlist. We&apos;ll let you know if a spot opens up.
             </p>
             <form action={cancelEventRsvp} className="mt-4">
               <input type="hidden" name="eventId" value={event.id} />
-              <button type="submit" className="text-sm text-grey underline hover:text-ink">
+              <button
+                type="submit"
+                className="text-sm text-taupe underline decoration-taupe/40 underline-offset-2 transition-colors duration-300 hover:text-ink hover:decoration-ink"
+              >
                 Leave waitlist
               </button>
             </form>
@@ -190,7 +196,7 @@ export default async function EventDetailPage({
         ) : (
           <form
             action={joinEvent}
-            className="mb-6 flex flex-col gap-4 rounded-md border border-orange/30 bg-orange/5 p-4"
+            className="mb-6 flex flex-col gap-4 rounded-lg border border-foil/30 bg-foil/5 p-5 shadow-sm"
           >
             <input type="hidden" name="eventId" value={event.id} />
 
@@ -213,75 +219,56 @@ export default async function EventDetailPage({
                   type="text"
                   name="guestNames"
                   placeholder="e.g. Priya Shah, Rohan Shah"
-                  className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+                  className="input-field"
                 />
               </label>
             )}
 
             {isAnnual && (
-              <div className="flex flex-col gap-4 border-t border-orange/20 pt-4">
-                <p className="text-xs uppercase tracking-wide text-grey">For the Annual Gathering</p>
+              <div className="flex flex-col gap-4 border-t border-foil/20 pt-4">
+                <p className="text-xs uppercase tracking-[0.28em] text-taupe">For the Annual Gathering</p>
                 <label className="flex flex-col gap-1.5 text-sm">
                   Arrival date
-                  <input
-                    type="date"
-                    name="arrivalDate"
-                    className="w-fit rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-                  />
+                  <input type="date" name="arrivalDate" className="input-field w-fit" />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm">
                   Dietary requirements
-                  <textarea
-                    name="dietaryNotes"
-                    rows={2}
-                    className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-                  />
+                  <textarea name="dietaryNotes" rows={2} className="input-field" />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm">
                   Travel / accommodation needed
-                  <textarea
-                    name="travelNotes"
-                    rows={2}
-                    className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-                  />
+                  <textarea name="travelNotes" rows={2} className="input-field" />
                 </label>
               </div>
             )}
 
             {questions.length > 0 && (
-              <div className="flex flex-col gap-4 border-t border-orange/20 pt-4">
+              <div className="flex flex-col gap-4 border-t border-foil/20 pt-4">
                 {questions.map((question, i) => (
                   <label key={i} className="flex flex-col gap-1.5 text-sm">
                     {question}
-                    <input
-                      type="text"
-                      name={`question_${i}`}
-                      className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-                    />
+                    <input type="text" name={`question_${i}`} className="input-field" />
                   </label>
                 ))}
               </div>
             )}
 
-            <button
-              type="submit"
-              className="w-fit rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
-            >
+            <button type="submit" className="btn-primary w-fit !bg-foil !text-ink hover:!text-bone">
               {event.approvalRequired ? "Request to join" : "Join"}
             </button>
           </form>
         ))}
 
       {isPast && hasJoined && event.adminNote && (
-        <div className="mb-6 rounded-md border border-grey/15 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-grey">A note from the room</p>
+        <div className="card mb-6 p-5">
+          <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">A note from the room</p>
           <p className="text-sm leading-relaxed">{event.adminNote}</p>
         </div>
       )}
 
       {hasJoined && photoCount > 0 && (
-        <div className="mb-6 rounded-md border border-grey/15 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Photos ({photoCount})</p>
+        <div className="card mb-6 p-5">
+          <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Photos ({photoCount})</p>
           <div className="grid grid-cols-3 gap-2">
             {photos.map((photo) => (
               <a
@@ -289,22 +276,25 @@ export default async function EventDetailPage({
                 href={`/api/events/${event.id}/gallery/${photo.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block aspect-square overflow-hidden rounded-md"
+                className="block aspect-square overflow-hidden rounded-md shadow-sm transition-all duration-300 hover:shadow-md"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/events/${event.id}/gallery/${photo.thumbnailUrl ?? photo.url}`}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-300 ease-out hover:scale-105"
                   draggable={false}
                 />
               </a>
             ))}
           </div>
           {totalPhotoPages > 1 && (
-            <div className="mt-3 flex gap-4 text-xs text-grey">
+            <div className="mt-3 flex gap-4 text-xs text-taupe">
               {photoPage > 1 && (
-                <Link href={`/events/${event.id}?photoPage=${photoPage - 1}`} className="hover:text-ink">
+                <Link
+                  href={`/events/${event.id}?photoPage=${photoPage - 1}`}
+                  className="transition-colors duration-300 hover:text-ink"
+                >
                   ← Newer
                 </Link>
               )}
@@ -312,7 +302,10 @@ export default async function EventDetailPage({
                 Page {photoPage} of {totalPhotoPages}
               </span>
               {photoPage < totalPhotoPages && (
-                <Link href={`/events/${event.id}?photoPage=${photoPage + 1}`} className="hover:text-ink">
+                <Link
+                  href={`/events/${event.id}?photoPage=${photoPage + 1}`}
+                  className="transition-colors duration-300 hover:text-ink"
+                >
                   Older →
                 </Link>
               )}
@@ -324,8 +317,8 @@ export default async function EventDetailPage({
     </div>
 
     <div className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
-      <div className="rounded-md border border-grey/15 p-4">
-        <p className="mb-2 text-xs uppercase tracking-wide text-grey">Hosted by</p>
+      <div className="card p-5">
+        <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Hosted by</p>
         {event.sponsorLogoUrl ? (
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -343,8 +336,8 @@ export default async function EventDetailPage({
       </div>
 
       {attendees.length > 0 && (
-        <div className="rounded-md border border-grey/15 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Who's going</p>
+        <div className="card p-5">
+          <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Who's going</p>
           <div className="mb-3 flex flex-wrap items-center">
             {attendees.slice(0, 8).map((a) => (
               <Avatar
@@ -352,11 +345,11 @@ export default async function EventDetailPage({
                 name={a.member.name}
                 photoUrl={a.member.photoUrl}
                 size="sm"
-                className="-ml-2 ring-2 ring-paper first:ml-0"
+                className="-ml-2 ring-2 ring-bone first:ml-0"
               />
             ))}
             {attendees.length > 8 && (
-              <span className="-ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-grey/10 text-xs text-grey ring-2 ring-paper">
+              <span className="-ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-taupe/10 text-xs text-taupe ring-2 ring-bone">
                 +{attendees.length - 8}
               </span>
             )}
@@ -373,7 +366,10 @@ export default async function EventDetailPage({
       )}
 
       {!isPast && (
-        <Link href="/messages/rm" className="inline-block text-sm text-grey underline hover:text-ink">
+        <Link
+          href="/messages/rm"
+          className="inline-block text-sm text-taupe underline decoration-taupe/40 underline-offset-2 transition-colors duration-300 hover:text-ink hover:decoration-ink"
+        >
           Contact the host
         </Link>
       )}

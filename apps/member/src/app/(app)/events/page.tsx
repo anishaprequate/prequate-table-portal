@@ -82,13 +82,13 @@ export default async function EventsPage({
         <div className="mt-2 flex flex-shrink-0 gap-4 text-sm">
           <Link
             href="/events?view=list"
-            className={view === "list" ? "font-medium text-ink" : "text-grey hover:text-ink"}
+            className={`transition-colors duration-300 ${view === "list" ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
           >
             List
           </Link>
           <Link
             href="/events?view=calendar"
-            className={view === "calendar" ? "font-medium text-ink" : "text-grey hover:text-ink"}
+            className={`transition-colors duration-300 ${view === "calendar" ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
           >
             Calendar
           </Link>
@@ -100,7 +100,7 @@ export default async function EventsPage({
           <div className="mb-4 flex items-center justify-between">
             <Link
               href={`/events?view=calendar&month=${prevMonth.getFullYear()}-${prevMonth.getMonth() + 1}`}
-              className="text-sm text-grey hover:text-ink"
+              className="text-sm text-taupe hover:text-ink"
             >
               ← Prev
             </Link>
@@ -109,14 +109,14 @@ export default async function EventsPage({
             </p>
             <Link
               href={`/events?view=calendar&month=${nextMonth.getFullYear()}-${nextMonth.getMonth() + 1}`}
-              className="text-sm text-grey hover:text-ink"
+              className="text-sm text-taupe hover:text-ink"
             >
               Next →
             </Link>
           </div>
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-md border border-grey/15 bg-grey/15 text-xs">
+          <div className="card grid grid-cols-7 gap-px overflow-hidden bg-taupe/10 text-xs">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="bg-paper px-2 py-1.5 text-center text-grey">
+              <div key={d} className="bg-bone px-2 py-1.5 text-center text-taupe">
                 {d}
               </div>
             ))}
@@ -126,20 +126,20 @@ export default async function EventsPage({
               return (
                 <div
                   key={i}
-                  className={`min-h-[72px] bg-paper px-1.5 py-1 ${inMonth ? "" : "opacity-30"}`}
+                  className={`min-h-[72px] bg-bone px-1.5 py-1 transition-colors duration-300 hover:bg-foil/5 ${inMonth ? "" : "opacity-30"}`}
                 >
-                  <p className="mb-1 text-grey">{day.getDate()}</p>
+                  <p className="mb-1 text-taupe">{day.getDate()}</p>
                   {dayEvents.slice(0, 2).map((e) => (
                     <Link
                       key={e.id}
                       href={`/events/${e.id}`}
-                      className="mb-0.5 block truncate rounded bg-orange/10 px-1 py-0.5 text-[10px] text-deep-orange hover:bg-orange/20"
+                      className="mb-0.5 block truncate rounded bg-foil/10 px-1 py-0.5 text-[10px] text-clay transition-colors duration-300 hover:bg-foil/20"
                     >
                       {e.title}
                     </Link>
                   ))}
                   {dayEvents.length > 2 && (
-                    <p className="text-[10px] text-grey">+{dayEvents.length - 2} more</p>
+                    <p className="text-[10px] text-taupe">+{dayEvents.length - 2} more</p>
                   )}
                 </div>
               );
@@ -149,21 +149,24 @@ export default async function EventsPage({
       ) : (
         <>
           <section className="mb-12">
-            <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Upcoming</h2>
-            {upcoming.length === 0 && <p className="text-sm text-grey">Nothing on the calendar yet.</p>}
-            <ul className="flex flex-col divide-y divide-grey/15">
+            <h2 className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Upcoming</h2>
+            {upcoming.length === 0 && <p className="text-sm text-taupe">Nothing on the calendar yet.</p>}
+            <ul className="flex flex-col divide-y divide-taupe/15">
               {upcoming.map((event) => (
-                <li key={event.id} className="py-4">
-                  <Link href={`/events/${event.id}`} className="block">
+                <li key={event.id}>
+                  <Link
+                    href={`/events/${event.id}`}
+                    className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+                  >
                     <p className="font-display text-xl italic leading-tight text-ink">
                       {event.title}
                       {event.cancelledAt && (
-                        <span className="ml-2 align-middle rounded-full bg-grey/10 px-2 py-0.5 text-xs font-sans not-italic text-grey">
+                        <span className="ml-2 align-middle rounded-full bg-taupe/10 px-2 py-0.5 text-xs font-sans not-italic text-taupe">
                           Cancelled
                         </span>
                       )}
                     </p>
-                    <p className="text-sm text-grey">
+                    <p className="text-sm text-taupe">
                       {formatSlot(event.startTime)}
                       {event.location && ` · ${event.location}`}
                     </p>
@@ -174,21 +177,24 @@ export default async function EventsPage({
           </section>
 
           <section>
-            <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Past</h2>
-            {past.length === 0 && <p className="text-sm text-grey">No events yet.</p>}
-            <ul className="flex flex-col divide-y divide-grey/15">
+            <h2 className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Past</h2>
+            {past.length === 0 && <p className="text-sm text-taupe">No events yet.</p>}
+            <ul className="flex flex-col divide-y divide-taupe/15">
               {past.map((event) => (
-                <li key={event.id} className="py-4">
-                  <Link href={`/events/${event.id}`} className="block">
+                <li key={event.id}>
+                  <Link
+                    href={`/events/${event.id}`}
+                    className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+                  >
                     <p className="font-display text-xl italic leading-tight text-ink">
                       {event.title}
                       {event.cancelledAt && (
-                        <span className="ml-2 align-middle rounded-full bg-grey/10 px-2 py-0.5 text-xs font-sans not-italic text-grey">
+                        <span className="ml-2 align-middle rounded-full bg-taupe/10 px-2 py-0.5 text-xs font-sans not-italic text-taupe">
                           Cancelled
                         </span>
                       )}
                     </p>
-                    <p className="text-sm text-grey">
+                    <p className="text-sm text-taupe">
                       {formatSlot(event.startTime)}
                       {event.location && ` · ${event.location}`}
                     </p>

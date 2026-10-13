@@ -5,7 +5,6 @@ import { PageHero } from "@/components/page-hero";
 import { ReportSectionNav } from "@/components/reports/report-section-nav";
 import { MembersReportFilterBar } from "@/components/reports/members-report-filter-bar";
 import { SortableInactiveTable } from "@/components/reports/sortable-inactive-table";
-import { PointsTrendChart } from "@/components/reports/points-trend-chart";
 
 export default async function MembersReportPage({
   searchParams,
@@ -21,7 +20,7 @@ export default async function MembersReportPage({
 
   return (
     <div className="max-w-3xl">
-      <PageHero title="Members" subtitle="Who's gone quiet, who's most active, and points over time." />
+      <PageHero title="Members" subtitle="Who's gone quiet, and who's most active." />
       <ReportSectionNav active="/reports/members" />
       <MembersReportFilterBar q={q} sector={sector} sectorOptions={data.sectorOptions} />
 
@@ -69,12 +68,6 @@ export default async function MembersReportPage({
             </tbody>
           </table>
         )}
-      </section>
-
-      <section>
-        <h2 className="mb-1 text-xs uppercase tracking-wide text-grey">Points balance trend</h2>
-        <p className="mb-4 text-sm text-grey">Cumulative points awarded across the membership. Click a point for that month&apos;s awards.</p>
-        <PointsTrendChart data={data.pointsTrend} />
       </section>
     </div>
   );

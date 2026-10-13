@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
-import { getCurrentAdmin, canView, canWrite } from "@/lib/session";
+import { getCurrentAdmin, canView, canWrite, isFullAdmin } from "@/lib/session";
 import { disconnectGoogleCalendar } from "@/lib/actions/google-calendar";
+import { updateRoomSettings } from "@/lib/actions/room";
 import { PageHero } from "@/components/page-hero";
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: { connected?: string; disconnected?: string; error?: string };
+  searchParams: { connected?: string; disconnected?: string; error?: string; roomSaved?: string };
 }) {
   const admin = await getCurrentAdmin();
   if (!admin || !canView(admin.role)) redirect("/bookings");
   const writable = canWrite(admin.role);
 
-  const connection = await prisma.googleCalendarConnection.findFirst({
-    orderBy: { createdAt: "desc" },
-  });
+  const [connection, roomSettings] = await Promise.all([
+    prisma.googleCalendarConnection.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma.appSettings.findUnique({ where: { id: "singleton" } }),
+  ]);
 
   return (
     <div className="max-w-md">
@@ -36,6 +38,9 @@ export default async function SettingsPage({
         <p className="mb-6 text-sm text-deep-orange">
           Couldn&apos;t connect. Check the server logs for what Google returned, and try again.
         </p>
+      )}
+      {searchParams.roomSaved && (
+        <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>
       )}
 
       <div className="mb-2 text-xs uppercase tracking-wide text-grey">Google Calendar</div>
@@ -91,6 +96,34 @@ export default async function SettingsPage({
         >
           Interest categories
         </Link>
+      </div>
+
+      <div className="mt-12">
+        <div className="mb-2 text-xs uppercase tracking-wide text-grey">The Room</div>
+        <p className="mb-4 text-sm text-grey">
+          An optional line below the Room stating total Hours held this month, with no names attached.
+        </p>
+        {isFullAdmin(admin.role) && writable ? (
+          <form action={updateRoomSettings}>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                name="roomPulseEnabled"
+                defaultChecked={roomSettings?.roomPulseEnabled ?? true}
+                className="h-4 w-4 accent-orange"
+              />
+              Show the room pulse line
+            </label>
+            <button
+              type="submit"
+              className="mt-4 w-fit rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
+            >
+              Save
+            </button>
+          </form>
+        ) : (
+          <p className="text-sm">{roomSettings?.roomPulseEnabled ?? true ? "Currently shown." : "Currently hidden."}</p>
+        )}
       </div>
     </div>
   );

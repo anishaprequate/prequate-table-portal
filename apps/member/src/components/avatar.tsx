@@ -21,12 +21,12 @@ export function Avatar({
     <img
       src={photoUrl}
       alt=""
-      className={`${box} flex-shrink-0 rounded-full object-cover ${className}`}
+      className={`${box} flex-shrink-0 rounded-full object-cover ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50 ${className}`}
       draggable={false}
     />
   ) : (
     <div
-      className={`flex ${box} flex-shrink-0 items-center justify-center rounded-full bg-orange/10 font-display ${text} text-ink ${className}`}
+      className={`flex ${box} flex-shrink-0 items-center justify-center rounded-full bg-foil/10 font-display ${text} text-ink ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50 ${className}`}
     >
       {name.charAt(0)}
     </div>
