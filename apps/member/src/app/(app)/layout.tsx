@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { NavShell } from "@/components/nav-shell";
+import { ToastProvider } from "@/components/toast";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -18,8 +19,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <NavShell memberName={user.name} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications}>
-      {children}
-    </NavShell>
+    <ToastProvider>
+      <NavShell memberName={user.name} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications}>
+        {children}
+      </NavShell>
+    </ToastProvider>
   );
 }

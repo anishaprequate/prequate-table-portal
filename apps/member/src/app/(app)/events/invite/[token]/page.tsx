@@ -7,7 +7,9 @@ export default async function EventInviteLinkPage({ params }: { params: { token:
   if (!user) redirect("/login");
 
   const event = await prisma.event.findUnique({ where: { inviteToken: params.token } });
-  if (!event || event.archivedAt) notFound();
+  // A closed event is joined by invitation only. A forwarded link must never
+  // make someone invited, so it does nothing here.
+  if (!event || event.archivedAt || event.inviteOnly) notFound();
 
   await prisma.eventAttendance.upsert({
     where: { eventId_memberId: { eventId: event.id, memberId: user.id } },

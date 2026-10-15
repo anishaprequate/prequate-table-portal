@@ -171,6 +171,51 @@ export async function getRoomSatellites(viewerId: string): Promise<Satellite[]> 
   ];
 }
 
+export interface NextUp {
+  kind: "hour" | "event";
+  title: string;
+  startsAt: Date;
+  href: string;
+}
+
+// The single nearest commitment on the member's calendar: their next Hour or
+// the next event they have joined, whichever starts first.
+export async function getNextUp(viewerId: string): Promise<NextUp | null> {
+  const now = new Date();
+  const [booking, attendance] = await Promise.all([
+    prisma.booking.findFirst({
+      where: { memberId: viewerId, startTime: { gte: now }, status: { not: "CANCELLED" } },
+      orderBy: { startTime: "asc" },
+      include: { partner: { select: { name: true } } },
+    }),
+    prisma.eventAttendance.findFirst({
+      where: { memberId: viewerId, joined: true, event: { startTime: { gte: now }, cancelledAt: null } },
+      orderBy: { event: { startTime: "asc" } },
+      include: { event: { select: { id: true, title: true, startTime: true } } },
+    }),
+  ]);
+
+  const hour: NextUp | null = booking
+    ? {
+        kind: "hour",
+        title: `Your Hour with ${booking.partner.name.split(" ")[0]}`,
+        startsAt: booking.startTime,
+        href: `/the-hour/${booking.id}`,
+      }
+    : null;
+  const event: NextUp | null = attendance
+    ? {
+        kind: "event",
+        title: attendance.event.title,
+        startsAt: attendance.event.startTime,
+        href: `/events/${attendance.event.id}`,
+      }
+    : null;
+
+  if (hour && event) return hour.startsAt <= event.startsAt ? hour : event;
+  return hour ?? event;
+}
+
 function formatShortDate(date: Date): string {
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(date);
 }

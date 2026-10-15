@@ -33,7 +33,7 @@ export function MembersFilterBar({
   }
 
   return (
-    <div className="card mb-6 flex items-center gap-3 px-4 py-2.5">
+    <div className="card mb-6 flex items-center gap-1 pl-4 pr-1">
       <input
         type="text"
         defaultValue={q}
@@ -48,12 +48,12 @@ export function MembersFilterBar({
           }
         }}
         placeholder="Search by name"
-        className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-taupe/60"
+        className="min-h-[44px] min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-taupe/60"
       />
       <details className="relative flex-shrink-0">
         <summary
           aria-label="Filter"
-          className="flex cursor-pointer list-none items-center text-taupe transition-colors duration-300 hover:text-ink [&::-webkit-details-marker]:hidden"
+          className="tap flex h-11 w-11 cursor-pointer list-none items-center justify-center text-taupe transition-colors duration-300 hover:text-ink [&::-webkit-details-marker]:hidden"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 2.5h14M4 8h8M6.5 13.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -64,7 +64,7 @@ export function MembersFilterBar({
           <select
             value={sector}
             onChange={(e) => navigate({ sector: e.target.value })}
-            className="input-field mb-3 !py-1.5"
+            className="input-field mb-3 !min-h-[44px] !py-2.5"
           >
             <option value="">All sectors</option>
             {sectorOptions.map((s) => (
@@ -77,7 +77,7 @@ export function MembersFilterBar({
           <select
             value={eventId}
             onChange={(e) => navigate({ eventId: e.target.value })}
-            className="input-field mb-3 !py-1.5"
+            className="input-field mb-3 !min-h-[44px] !py-2.5"
           >
             <option value="">All events</option>
             {eventOptions.map((e) => (
@@ -89,7 +89,7 @@ export function MembersFilterBar({
           <label className="mb-1 block text-xs uppercase tracking-[0.28em] text-taupe">Archetype</label>
           <select
             disabled
-            className="w-full cursor-not-allowed rounded-md border border-taupe/20 bg-taupe/5 px-2 py-1.5 text-sm text-taupe"
+            className="w-full cursor-not-allowed rounded-md border border-taupe/20 bg-taupe/5 px-2 py-2.5 text-sm text-taupe"
           >
             <option>Archetype (coming soon)</option>
           </select>

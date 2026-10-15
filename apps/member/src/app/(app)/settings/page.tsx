@@ -5,6 +5,7 @@ import { updateSettings } from "@/lib/actions/settings";
 import { updateProfile } from "@/lib/actions/profile";
 import { PageHero } from "@/components/page-hero";
 import { formatSeatDisplay } from "@/lib/format";
+import { PhotoPicker } from "@/components/photo-picker";
 
 export default async function SettingsPage({
   searchParams,
@@ -14,10 +15,19 @@ export default async function SettingsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [categories, myInterests] = await Promise.all([
+  const [categories, myInterests, appSettings] = await Promise.all([
     prisma.interestCategory.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.memberInterest.findMany({ where: { memberId: user.id }, select: { categoryId: true } }),
+    prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
+  const crisisText =
+    appSettings?.crisisAccessText?.trim() ||
+    "If something is pressing and cannot wait for the usual route, call or message Anisha directly. You will reach a person, not a queue.";
+  const crisisContact = appSettings?.crisisAccessContact?.trim() || "Anisha, 9150582103";
+  // Make the first phone number in the contact line tappable.
+  const phoneMatch = crisisContact.match(/(?:\+?91[\s-]?)?(\d[\d\s-]{8,13}\d)/);
+  const phoneDigits = phoneMatch ? phoneMatch[0].replace(/\D/g, "") : null;
+  const telHref = phoneDigits ? `tel:${phoneDigits.length === 10 ? "+91" : "+"}${phoneDigits}` : null;
   const myInterestIds = new Set(myInterests.map((i) => i.categoryId));
 
   return (
@@ -33,25 +43,7 @@ export default async function SettingsPage({
         <form action={updateProfile} className="flex flex-col gap-6">
           <p className="-mt-2 text-xs text-taupe">Seat {formatSeatDisplay(user.seatNumber)}</p>
 
-          <div className="flex items-center gap-4">
-            {user.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.photoUrl}
-                alt=""
-                className="h-16 w-16 rounded-full object-cover ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50"
-                draggable={false}
-              />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-foil/10 font-display text-xl text-ink ring-1 ring-taupe/10 transition-all duration-300 ease-out hover:ring-2 hover:ring-foil/50">
-                {user.name.charAt(0)}
-              </div>
-            )}
-            <label className="flex flex-col gap-1.5 text-sm">
-              {user.photoUrl ? "Replace photo" : "Add a photo"}
-              <input type="file" name="photo" accept="image/*" className="text-sm" />
-            </label>
-          </div>
+          <PhotoPicker photoUrl={user.photoUrl} initial={user.name.charAt(0)} />
 
           <label className="flex flex-col gap-1.5 text-sm">
             Name
@@ -86,7 +78,7 @@ export default async function SettingsPage({
                     name="interests"
                     value={category.id}
                     defaultChecked={myInterestIds.has(category.id)}
-                    className="h-3.5 w-3.5 accent-foil"
+                    className="h-5 w-5 flex-shrink-0 accent-foil"
                   />
                   {category.label}
                 </label>
@@ -109,7 +101,7 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="emailHourReminders"
                 defaultChecked={user.emailHourReminders}
-                className="mt-0.5 h-4 w-4 accent-foil"
+                className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
                 Email me 24 hours before The Hour
@@ -122,7 +114,7 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="emailEventBlasts"
                 defaultChecked={user.emailEventBlasts}
-                className="mt-0.5 h-4 w-4 accent-foil"
+                className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
                 Email me event updates and blasts
@@ -137,7 +129,7 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="emailEventSurveys"
                 defaultChecked={user.emailEventSurveys}
-                className="mt-0.5 h-4 w-4 accent-foil"
+                className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
                 Email me post-event surveys
@@ -157,7 +149,7 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="showInDirectory"
                 defaultChecked={!user.directoryOptOut}
-                className="mt-0.5 h-4 w-4 accent-foil"
+                className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
                 Show me in the member directory
@@ -172,7 +164,7 @@ export default async function SettingsPage({
                 type="checkbox"
                 name="allowPartnerMessages"
                 defaultChecked={user.allowPartnerMessages}
-                className="mt-0.5 h-4 w-4 accent-foil"
+                className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
                 Let partners message me directly
@@ -188,6 +180,22 @@ export default async function SettingsPage({
           Save
         </button>
       </form>
+
+      <section className="mt-12 border-t border-taupe/12 pt-5" aria-labelledby="crisis-access">
+        <p id="crisis-access" className="mb-1.5 text-[11px] uppercase tracking-[0.22em] text-taupe">
+          Crisis access
+        </p>
+        <p className="text-xs leading-relaxed text-taupe">{crisisText}</p>
+        <p className="mt-1.5 text-sm text-ink">
+          {telHref ? (
+            <a href={telHref} className="underline decoration-taupe/40 underline-offset-2">
+              {crisisContact}
+            </a>
+          ) : (
+            crisisContact
+          )}
+        </p>
+      </section>
     </div>
   );
 }

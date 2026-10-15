@@ -6,6 +6,9 @@ import { cancelBooking } from "@/lib/actions/bookings";
 import { formatSlot } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
 import { CancelBookingForm } from "@/components/cancel-booking-form";
+import { getOpenOffers } from "@/lib/hour-offers";
+import { OfferCard } from "@/components/hour/offer-card";
+import { postKindLabel } from "@/lib/hour-posts";
 
 export default async function BookingDetailPage({
   params,
@@ -22,6 +25,8 @@ export default async function BookingDetailPage({
     include: { partner: true, briefs: true },
   });
   if (!booking) notFound();
+
+  const offers = await getOpenOffers(user.id, booking.id);
 
   const isPast = booking.startTime < new Date();
   const isCancelled = booking.status === "CANCELLED";
@@ -43,8 +48,34 @@ export default async function BookingDetailPage({
       </h1>
       <p className="mb-10 text-sm text-taupe">
         {formatSlot(booking.startTime)}
-        {isCancelled && " — cancelled"}
+        {isCancelled && ", cancelled"}
       </p>
+
+      {offers.map((o) => (
+        <div key={o.id} className="mb-8">
+          <OfferCard offer={o} />
+        </div>
+      ))}
+
+      <div className="mb-8">
+        <p className="mb-1 text-xs uppercase tracking-[0.28em] text-taupe">
+          {booking.mode === "ONLINE" ? "Online" : "In person"}
+        </p>
+        {booking.mode === "ONLINE" ? (
+          booking.location ? (
+            <a
+              href={booking.location}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center break-all text-sm text-clay underline decoration-clay/40 underline-offset-2"
+            >
+              {booking.location}
+            </a>
+          ) : (
+            <p className="text-sm">You will receive a Google Meet link.</p>
+          )
+        ) : null}
+      </div>
 
       {booking.memberContext && (
         <div className="mb-8">
@@ -55,9 +86,10 @@ export default async function BookingDetailPage({
 
       {booking.briefs.length > 0 && (
         <div className="mb-8">
-          <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Brief</p>
+          <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Shared by {booking.partner.name.split(" ")[0]}</p>
           {booking.briefs.map((brief) => (
-            <div key={brief.id} className="mb-3 text-sm">
+            <div key={brief.id} className="mb-4 text-sm">
+              <p className="mb-1 text-xs text-clay">{postKindLabel(brief.kind)}</p>
               {brief.content && <p className="whitespace-pre-wrap">{brief.content}</p>}
               {brief.fileUrl && (
                 <a

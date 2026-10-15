@@ -59,16 +59,16 @@ export default async function InsightPage({
         </button>
       </form>
 
-      <div className="mb-8 flex gap-4 text-sm">
+      <div className="-ml-3 mb-6 flex gap-1 text-sm">
         <Link
           href={q ? `/insight?q=${encodeURIComponent(q)}` : "/insight"}
-          className={`transition-colors duration-300 ${!bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
+          className={`tap flex min-h-[44px] items-center rounded-md px-3 transition-colors duration-300 ${!bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
         >
           All
         </Link>
         <Link
           href={q ? `/insight?filter=bookmarked&q=${encodeURIComponent(q)}` : "/insight?filter=bookmarked"}
-          className={`transition-colors duration-300 ${bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
+          className={`tap flex min-h-[44px] items-center rounded-md px-3 transition-colors duration-300 ${bookmarkedOnly ? "font-medium text-ink" : "text-taupe hover:text-ink"}`}
         >
           Bookmarked
         </Link>

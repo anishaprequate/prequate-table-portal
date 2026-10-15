@@ -1,8 +1,6 @@
 // Google Calendar client.
 //
-// Availability (getPartnerAvailability) is always mocked — that stands in
-// for reading each partner's own connected calendar, which isn't part of
-// this integration.
+// Availability lives in availability.ts, not here.
 //
 // Event creation/reschedule/cancellation for The Hour is real whenever a
 // GoogleCalendarConnection row exists (an admin has connected an account
@@ -13,53 +11,18 @@
 import { prisma } from "@prequate/db";
 import { refreshAccessToken } from "./google-oauth";
 
-export interface CalendarSlot {
-  startTime: Date;
-  endTime: Date;
-}
-
 export interface CalendarEventRef {
   googleCalendarEventId: string;
+  // Set for an online Hour: the Google Meet link Google added to the event.
+  meetLink?: string | null;
 }
 
-const SLOT_DURATION_MINUTES = 45;
-const BUSINESS_HOUR_START = 10;
-const BUSINESS_HOUR_END = 17;
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
-/**
- * Deterministic mock availability: business-hour slots, skipping weekends,
- * from tomorrow through the end of *next* calendar month — always exactly
- * the current month and the immediately following one, no staggered
- * early-open logic or day-count countdown. Real implementation would read
- * the partner's connected Google Calendar free/busy data.
- */
-export function getPartnerAvailability(partnerId: string): CalendarSlot[] {
-  const slots: CalendarSlot[] = [];
-  const now = new Date();
-
-  const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 2, 1); // start of the month after next
-  const day = new Date(now);
-  day.setDate(day.getDate() + 1);
-  day.setHours(0, 0, 0, 0);
-
-  while (day < rangeEnd) {
-    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-    if (!isWeekend) {
-      for (let hour = BUSINESS_HOUR_START; hour < BUSINESS_HOUR_END; hour++) {
-        const startTime = new Date(day);
-        startTime.setHours(hour, 0, 0, 0);
-        const endTime = new Date(startTime.getTime() + SLOT_DURATION_MINUTES * 60_000);
-        slots.push({ startTime, endTime });
-      }
-    }
-    day.setDate(day.getDate() + 1);
-  }
-
-  return slots;
-}
-
 async function getActiveConnection(): Promise<{ calendarId: string; accessToken: string } | null> {
+  // Safety switch for development and testing: with GOOGLE_CALENDAR_DISABLED=1
+  // no real calendar is ever touched, whatever is connected.
+  if (process.env.GOOGLE_CALENDAR_DISABLED === "1") return null;
   const connection = await prisma.googleCalendarConnection.findFirst({
     orderBy: { createdAt: "desc" },
   });
@@ -87,6 +50,8 @@ export async function createCalendarEvent(params: {
   memberName: string;
   memberEmail?: string | null;
   memberContext?: string | null;
+  // An online Hour gets a Google Meet link added to the event.
+  online?: boolean;
   startTime: Date;
   endTime: Date;
 }): Promise<CalendarEventRef> {
@@ -94,7 +59,7 @@ export async function createCalendarEvent(params: {
 
   if (!connection) {
     const id = `mock-gcal-${params.partnerId}-${params.startTime.getTime()}`;
-    return { googleCalendarEventId: id };
+    return { googleCalendarEventId: id, meetLink: null };
   }
 
   const attendees = [
@@ -112,8 +77,11 @@ export async function createCalendarEvent(params: {
     descriptionLines.push("", "What the member shared ahead of the session:", `"${params.memberContext}"`);
   }
 
+  // sendUpdates=all: Google emails the invitation to the member and partner.
+  // conferenceDataVersion=1 is what lets the request ask Google for a Meet link.
+  const query = `sendUpdates=all${params.online ? "&conferenceDataVersion=1" : ""}`;
   const response = await fetch(
-    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events`,
+    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events?${query}`,
     {
       method: "POST",
       headers: {
@@ -126,6 +94,16 @@ export async function createCalendarEvent(params: {
         start: { dateTime: params.startTime.toISOString() },
         end: { dateTime: params.endTime.toISOString() },
         attendees,
+        ...(params.online
+          ? {
+              conferenceData: {
+                createRequest: {
+                  requestId: crypto.randomUUID(),
+                  conferenceSolutionKey: { type: "hangoutsMeet" },
+                },
+              },
+            }
+          : {}),
       }),
     },
   );
@@ -134,8 +112,14 @@ export async function createCalendarEvent(params: {
     throw new Error(`Google Calendar event creation failed: ${response.status} ${await response.text()}`);
   }
 
-  const event = (await response.json()) as { id: string };
-  return { googleCalendarEventId: event.id };
+  const event = (await response.json()) as {
+    id: string;
+    hangoutLink?: string;
+    conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[] };
+  };
+  const meetLink =
+    event.hangoutLink ?? event.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri ?? null;
+  return { googleCalendarEventId: event.id, meetLink };
 }
 
 export async function createEventCalendarEntry(params: {
@@ -271,7 +255,7 @@ export async function rescheduleCalendarEvent(params: {
   }
 
   await fetch(
-    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events/${params.googleCalendarEventId}`,
+    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events/${params.googleCalendarEventId}?sendUpdates=all`,
     {
       method: "PATCH",
       headers: {
@@ -287,3 +271,4 @@ export async function rescheduleCalendarEvent(params: {
 
   return { googleCalendarEventId: params.googleCalendarEventId };
 }
+

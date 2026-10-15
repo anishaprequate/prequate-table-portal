@@ -27,7 +27,7 @@ export function SlotPicker({ slots }: { slots: SlotOption[] }) {
                   type="button"
                   key={slot.startTime}
                   onClick={() => setSelected(slot.startTime)}
-                  className={`rounded-md border px-3 py-2 text-sm shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`tap min-h-[44px] rounded-md border px-3 py-2 text-sm shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${
                     selected === slot.startTime
                       ? "border-foil bg-foil/10 shadow-md"
                       : "border-taupe/25 hover:border-foil/50"

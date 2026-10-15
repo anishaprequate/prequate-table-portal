@@ -24,12 +24,12 @@ export function EventDetailNav({
   ] as const;
 
   return (
-    <div className="mb-6 flex flex-wrap gap-6 border-b border-grey/15 text-sm">
+    <div className="mb-6 flex flex-wrap gap-x-1 border-b border-grey/15 text-sm">
       {items.map((item) => (
         <Link
           key={item.key}
           href={item.href}
-          className={`pb-3 font-medium transition ${
+          className={`flex min-h-[44px] items-center px-2.5 font-medium transition ${
             active === item.key ? "border-b-2 border-orange text-ink" : "text-grey hover:text-ink"
           }`}
         >

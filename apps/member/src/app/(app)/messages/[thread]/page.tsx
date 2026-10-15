@@ -46,7 +46,7 @@ export default async function MessageThreadPage({ params }: { params: { thread: 
         <Link
           href="/messages"
           aria-label="Back to messages"
-          className="mt-2 flex-shrink-0 rounded-md p-1 text-taupe transition-all duration-300 hover:-translate-x-0.5 hover:bg-ink/5 hover:text-ink"
+          className="-ml-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-taupe transition-all duration-300 hover:-translate-x-0.5 hover:bg-ink/5 hover:text-ink"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12.5 4.5L6 10l6.5 5.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />

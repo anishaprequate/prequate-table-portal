@@ -28,12 +28,18 @@ export async function getPartnerAvailabilityLines(): Promise<PartnerAvailability
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthName = now.toLocaleDateString("en-IN", { month: "long" });
 
+  // One grouped query for every partner, instead of one count per partner.
+  const grouped = await prisma.booking.groupBy({
+    by: ["partnerId"],
+    where: { status: { not: "CANCELLED" }, startTime: { gte: monthStart, lt: monthEnd } },
+    _count: { _all: true },
+  });
+  const bookedByPartner = new Map(grouped.map((g) => [g.partnerId, g._count._all]));
+
   const lines: PartnerAvailabilityLine[] = [];
 
   for (const partner of partners) {
-    const bookedThisMonth = await prisma.booking.count({
-      where: { partnerId: partner.id, status: { not: "CANCELLED" }, startTime: { gte: monthStart, lt: monthEnd } },
-    });
+    const bookedThisMonth = bookedByPartner.get(partner.id) ?? 0;
     const open = Math.max(0, partner.monthlyHourCapacity - bookedThisMonth);
 
     const firstName = partner.name.split(" ")[0];

@@ -1,44 +1,36 @@
-import Link from "next/link";
-import { prisma } from "@prequate/db";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/session";
+import { getMonthView } from "@/lib/hour-calendar";
+import { PageHero } from "@/components/page-hero";
 import { BackLink } from "@/components/back-link";
+import { HourCalendar } from "@/components/hour/hour-calendar";
+import { HourRule } from "@/components/hour/hour-rule";
 
-export default async function BookPartnerPage({
+// Book an Hour from a calendar. Partner, time and the note all happen in one
+// sheet: day, time, confirm.
+export default async function BookHourPage({
   searchParams,
 }: {
-  searchParams: { parentBookingId?: string; month?: string };
+  searchParams: { m?: string; parentBookingId?: string };
 }) {
-  const partners = await prisma.user.findMany({
-    where: { role: "PARTNER" },
-    orderBy: { name: "asc" },
-  });
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const parentParam = searchParams.parentBookingId
-    ? `&parentBookingId=${searchParams.parentBookingId}`
-    : "";
-  const monthParam = searchParams.month === "1" ? "&month=1" : "&month=0";
+  let view = await getMonthView(user.id, searchParams.m);
+  // No month chosen, and this one is used or empty: open on the next one.
+  if (!searchParams.m && (view.used || view.openDays.length === 0) && view.months[1]) {
+    const next = await getMonthView(user.id, view.months[1].param);
+    if (!next.used && next.openDays.length > 0) view = next;
+  }
 
   return (
     <div className="max-w-md">
-      <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">
-        Book a session
-      </h1>
-      <p className="mb-10 text-sm text-taupe">Choose who you want to spend the Hour with.</p>
-
-      <ul className="flex flex-col divide-y divide-taupe/15">
-        {partners.map((partner) => (
-          <li key={partner.id}>
-            <Link
-              href={`/the-hour/book/slot?partnerId=${partner.id}${parentParam}${monthParam}`}
-              className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
-            >
-              <p className="font-display text-xl italic leading-tight text-ink">{partner.name}</p>
-              {partner.bio && <p className="mt-1 text-sm text-taupe">{partner.bio}</p>}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      <BackLink href="/the-hour" />
+      <PageHero title="Book your" accent="Hour." subtitle="Pick a day with a dot." />
+      <HourRule />
+      <HourCalendar view={view} parentBookingId={searchParams.parentBookingId ?? null} />
+      <div className="mt-10">
+        <BackLink href="/the-hour" />
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@
     "dev:admin": "npm run dev -w apps/admin",
     "db:generate": "npm run generate -w packages/db",
     "db:push": "npm run push -w packages/db",
-    "db:seed": "npm run seed -w packages/db"
+    "db:seed": "npm run seed -w packages/db",
+    "set-password": "node scripts/set-password.cjs"
   }
 }

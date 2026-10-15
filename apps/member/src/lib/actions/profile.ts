@@ -31,9 +31,16 @@ export async function updateProfile(formData: FormData) {
 
   const newEmail = email || null;
 
+  // Remember which synced fields the member changed themselves, so the
+  // Notion sync never overwrites them.
+  const edited = new Set<string>(user.profileEditedFields ? JSON.parse(user.profileEditedFields) : []);
+  if (name && name !== user.name) edited.add("name");
+  if (newEmail !== user.email) edited.add("email");
+
   await prisma.user.update({
     where: { id: user.id },
     data: {
+      profileEditedFields: edited.size ? JSON.stringify([...edited]) : null,
       name: name || user.name,
       seatType: seatType || null,
       email: newEmail,

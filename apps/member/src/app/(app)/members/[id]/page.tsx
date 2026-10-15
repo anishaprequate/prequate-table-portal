@@ -36,10 +36,10 @@ export default async function MemberProfilePage({
   return (
     <div className="max-w-md">
       <div className="mb-8 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-3">
           <SeatBadge seatNumber={member.seatNumber} />
           <Avatar name={member.name} photoUrl={member.photoUrl} size="lg" />
-          <h1 className="font-display text-[2.75rem] italic leading-[1.02] tracking-[-0.01em] text-ink">
+          <h1 className="min-w-0 break-words font-display text-4xl italic leading-[1.02] tracking-[-0.01em] text-ink sm:text-[2.75rem]">
             {firstName} <span className="text-clay">{lastName}</span>
           </h1>
         </div>
@@ -50,7 +50,7 @@ export default async function MemberProfilePage({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`${member.name} on LinkedIn`}
-            className="mt-3 flex-shrink-0 rounded-md p-1.5 text-taupe transition-all duration-300 hover:-translate-y-0.5 hover:bg-ink/5 hover:text-ink"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-taupe transition-all duration-300 hover:-translate-y-0.5 hover:bg-ink/5 hover:text-ink"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.15 1.45-2.15 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.25 2.36 4.25 5.44v6.3zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z" />

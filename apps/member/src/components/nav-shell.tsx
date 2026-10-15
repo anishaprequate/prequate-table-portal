@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { signOut } from "@/lib/actions/auth";
 import { LogoMark } from "@/components/wordmark";
 import { UnreadBadge } from "@/components/unread-badge";
@@ -35,6 +36,16 @@ export function NavShell({
   const [unread, setUnread] = useState(unreadMessages);
   const [unreadNotifs, setUnreadNotifs] = useState(unreadNotifications);
   const [menuOpen, setMenuOpen] = useState(false);
+  const drawer = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+
+  // A closed drawer must not be reachable by keyboard or screen reader. This
+  // runs before the focus trap so the drawer is no longer inert when the
+  // trap moves focus into it.
+  useEffect(() => {
+    drawer.current?.toggleAttribute("inert", !menuOpen);
+  }, [menuOpen]);
+  useFocusTrap(drawer, menuOpen, [toggle]);
 
   useEffect(() => {
     const poll = async () => {
@@ -59,6 +70,22 @@ export function NavShell({
     setMenuOpen(false);
   }, [pathname]);
 
+  // While the drawer is open: Escape closes it, and the page behind it
+  // stops scrolling.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <>
@@ -70,7 +97,7 @@ export function NavShell({
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`group relative flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-out ${
+              className={`tap group relative flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-out ${
                 active ? "bg-foil/10 text-ink" : "text-taupe hover:bg-ink/[0.04] hover:text-ink"
               }`}
             >
@@ -93,7 +120,7 @@ export function NavShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-taupe/12 bg-bone/90 px-6 py-4 backdrop-blur-md transition-shadow duration-300 md:hidden">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex min-h-[44px] items-center gap-2.5">
           <span className="text-ink">
             <LogoMark className="h-4 w-4" />
           </span>
@@ -101,21 +128,33 @@ export function NavShell({
           <span className="font-display text-base text-ink">The Table</span>
         </Link>
         <button
+          ref={toggle}
           type="button"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
-          className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-ink transition-colors duration-300 hover:bg-ink/5"
+          className="tap relative -mr-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-ink transition-colors duration-300 hover:bg-ink/5"
         >
           {(unread > 0 || unreadNotifs > 0) && !menuOpen && (
             <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-scale-in rounded-full bg-clay" />
           )}
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="transition-transform duration-300 ease-out">
-            {menuOpen ? (
-              <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            ) : (
-              <path d="M2.5 5h15M2.5 10h15M2.5 15h15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            )}
-          </svg>
+          <span className="relative block h-3.5 w-5" aria-hidden="true">
+            <span
+              className={`absolute left-0 block h-[1.6px] w-5 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
+              }`}
+            />
+            <span
+              className={`absolute left-0 top-1/2 block h-[1.6px] w-5 -translate-y-1/2 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "scale-x-0 opacity-0" : "opacity-100"
+              }`}
+            />
+            <span
+              className={`absolute left-0 block h-[1.6px] w-5 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "bottom-1/2 translate-y-1/2 -rotate-45" : "bottom-0"
+              }`}
+            />
+          </span>
         </button>
       </div>
 
@@ -131,7 +170,8 @@ export function NavShell({
           onClick={() => setMenuOpen(false)}
         />
         <div
-          className={`absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col justify-between overflow-y-auto bg-bone px-6 pb-8 pt-[73px] shadow-lg transition-transform duration-300 ease-out ${
+          ref={drawer}
+          className={`absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col justify-between overflow-y-auto bg-bone px-6 pb-8 pt-[73px] shadow-lg transition-transform duration-[300ms] ease-out ${
             menuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -141,7 +181,7 @@ export function NavShell({
           <div className="mt-10 border-t border-taupe/12 pt-5">
             <p className="mb-2 text-xs text-taupe">{memberName}</p>
             <form action={signOut}>
-              <button type="submit" className="btn-secondary w-full !py-2 text-xs">
+              <button type="submit" className="btn-secondary w-full text-xs">
                 Sign out
               </button>
             </form>

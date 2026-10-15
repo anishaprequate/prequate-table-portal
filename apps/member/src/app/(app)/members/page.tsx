@@ -9,6 +9,7 @@ import { PageHero } from "@/components/page-hero";
 import { UnreadBadge } from "@/components/unread-badge";
 import { MembersFilterBar } from "@/components/members-filter-bar";
 import { Avatar } from "@/components/avatar";
+import { eventVisibleTo } from "@/lib/event-access";
 
 export default async function MembersPage({
   searchParams,
@@ -38,7 +39,7 @@ export default async function MembersPage({
         ...visibleWhere,
         ...(q && { name: { contains: q } }),
         ...(sectorFilter && { sector: sectorFilter }),
-        ...(eventFilter && { eventAttendances: { some: { eventId: eventFilter, joined: true } } }),
+        ...(eventFilter && { eventAttendances: { some: { eventId: eventFilter, joined: true, event: eventVisibleTo(user.id) } } }),
       },
       orderBy: { name: "asc" },
       select: { id: true, name: true, seatType: true, sector: true, bio: true, photoUrl: true },
@@ -48,7 +49,7 @@ export default async function MembersPage({
       select: { sector: true },
     }),
     prisma.event.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...eventVisibleTo(user.id) },
       select: { id: true, title: true },
       orderBy: { startTime: "desc" },
     }),
