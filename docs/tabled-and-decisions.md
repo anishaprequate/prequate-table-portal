@@ -32,7 +32,7 @@ These were deliberately set aside. Nothing here is blocked; it is waiting for it
 | Member login rebuild (a1) | Go-ahead to build it. Staff no longer use it: admin has its own username and password. Plan and schema are already approved: the plate access code on first visit, then a one-time code by email, ninety-day sessions, a lost-phone path, and "contact Anisha, 9150582103" if a code fails. |
 | Google calendar approach | Confirm service account (needs a Workspace super admin) or each partner signing in, and that partners will keep a "Table hours" calendar. Nothing live depends on it yet. |
 | A1 | Which brief this label refers to. It is not defined anywhere I can find. |
-| Commit | Whether the uncommitted work (Phases 0 to 2 of the phone redesign, the Notion sync, A3, A4) goes into PR #1 or a new branch. |
+| Push and pull request | The work is committed on `room-members-redesign` (e9eef48) but not pushed. Decide whether it goes into PR #1 or a new pull request. |
 
 ## 3. Waiting on a check I cannot do
 
