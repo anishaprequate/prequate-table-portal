@@ -109,3 +109,38 @@ body {
 .prose-post strong {
   font-weight: 700;
 }
+
+/* Phones. Every control is at least 44px, and text fields are 16px so iOS does
+   not zoom in when one is focused. List links get room above and below so a
+   name in a list is easy to hit with a thumb. */
+@media (max-width: 767px) {
+  main button,
+  main select,
+  main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  main summary,
+  main a[class*="rounded-md"] {
+    min-height: 44px;
+  }
+  main select,
+  main textarea,
+  main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]) {
+    font-size: 16px;
+  }
+  main ul a,
+  main ol a,
+  main a[class*="text-deep-orange"] {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* A tick box is easy to hit when its whole row is: bigger box, taller row. */
+  main input[type="checkbox"],
+  main input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+  }
+  main label:has(> input[type="checkbox"]) {
+    min-height: 44px;
+  }
+}

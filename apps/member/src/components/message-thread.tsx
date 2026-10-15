@@ -7,11 +7,11 @@ const POLL_INTERVAL_MS = 15_000;
 type Message = { id: string; senderRole: string; body: string; createdAt: string; read: boolean };
 
 // WhatsApp-style sent/read ticks, shown only on this member's own outgoing
-// messages — a single grey check once sent, a double orange check once
+// messages — a single taupe check once sent, a double foil check once
 // the RM or partner has actually opened the thread.
 function ReadTicks({ read }: { read: boolean }) {
   return (
-    <svg width="16" height="11" viewBox="0 0 16 11" className={`inline-block ${read ? "text-orange" : "text-grey"}`}>
+    <svg width="16" height="11" viewBox="0 0 16 11" className={`inline-block ${read ? "text-foil" : "text-taupe"}`}>
       <path d="M1 5.5L4 8.5L10 1.5" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       {read && (
         <path d="M6 5.5L9 8.5L15 1.5" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -61,18 +61,21 @@ export function MessageThread({
 
   return (
     <div className="mb-8 flex flex-col gap-4">
-      {messages.length === 0 && <p className="text-sm text-grey">Nothing here yet. Say hello.</p>}
+      {messages.length === 0 && <p className="text-sm text-taupe">Nothing here yet. Say hello.</p>}
       {messages.map((message) => (
-        <div key={message.id} className={message.senderRole === "MEMBER" ? "text-right" : ""}>
+        <div
+          key={message.id}
+          className={`animate-fade-up ${message.senderRole === "MEMBER" ? "text-right" : ""}`}
+        >
           <p
-            className={`inline-block max-w-sm rounded-md px-3 py-2 text-left text-sm ${
-              message.senderRole === "MEMBER" ? "bg-ink text-paper" : "bg-orange/10 text-ink"
+            className={`inline-block max-w-sm rounded-lg px-3.5 py-2.5 text-left text-sm shadow-sm ${
+              message.senderRole === "MEMBER" ? "bg-ink text-bone" : "bg-foil/10 text-ink"
             }`}
           >
             {message.body}
           </p>
           <p
-            className={`mt-1 flex items-center gap-1 text-xs text-grey ${
+            className={`mt-1 flex items-center gap-1 text-xs text-taupe ${
               message.senderRole === "MEMBER" ? "justify-end" : ""
             }`}
           >

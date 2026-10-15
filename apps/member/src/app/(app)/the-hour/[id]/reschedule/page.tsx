@@ -36,15 +36,15 @@ export default async function ReschedulePage({
   return (
     <div className="max-w-md">
       <h1 className="mb-1 font-display text-3xl italic leading-tight text-ink sm:text-4xl">
-        Reschedule with <span className="text-deep-orange">{booking.partner.name}</span>
+        Reschedule with <span className="text-clay">{booking.partner.name}</span>
       </h1>
-      <p className="mb-10 text-sm text-grey">Pick a new time. Your context carries over.</p>
+      <p className="mb-10 text-sm text-taupe">Pick a new time. Your context carries over.</p>
 
       {searchParams.error === "no-slot" && (
-        <p className="mb-6 text-sm text-deep-orange">Pick a time before confirming.</p>
+        <p className="mb-6 text-sm text-clay">Pick a time before confirming.</p>
       )}
       {searchParams.error === "month-used" && (
-        <p className="mb-6 text-sm text-deep-orange">
+        <p className="mb-6 text-sm text-clay">
           You've already got a session booked for {searchParams.month ?? "that month"}. Pick a
           different month.
         </p>
@@ -55,10 +55,7 @@ export default async function ReschedulePage({
 
         <SlotPicker slots={slotOptions} />
 
-        <button
-          type="submit"
-          className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
-        >
+        <button type="submit" className="btn-primary w-fit">
           Confirm new time
         </button>
       </form>

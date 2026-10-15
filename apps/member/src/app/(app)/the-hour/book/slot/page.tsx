@@ -54,24 +54,27 @@ export default async function BookSlotPage({
       <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">
         {partner.name}
       </h1>
-      <p className="mb-10 text-sm text-grey">
+      <p className="mb-10 text-sm text-taupe">
         Booking for {MONTH_NAME.format(targetMonth)}. Pick a time, then tell them what to expect.
       </p>
 
       {searchParams.error === "no-slot" && (
-        <p className="mb-6 text-sm text-deep-orange">Pick a time before confirming.</p>
+        <p className="mb-6 text-sm text-clay">Pick a time before confirming.</p>
       )}
       {searchParams.error === "month-used" && (
-        <p className="mb-6 text-sm text-deep-orange">
+        <p className="mb-6 text-sm text-clay">
           You've already booked your Hour for {searchParams.month ?? "this month"}. Cancel that
           session first, or pick a different month.
         </p>
       )}
 
       {targetMonthBooking ? (
-        <p className="mb-8 text-sm text-grey">
+        <p className="mb-8 text-sm text-taupe">
           You've already booked your Hour for {MONTH_NAME.format(targetMonth)}.{" "}
-          <Link href={`/the-hour/${targetMonthBooking.id}`} className="text-ink underline hover:no-underline">
+          <Link
+            href={`/the-hour/${targetMonthBooking.id}`}
+            className="text-ink underline decoration-foil/40 underline-offset-2 transition-colors duration-300 hover:decoration-foil"
+          >
             View that session
           </Link>
           .
@@ -81,7 +84,7 @@ export default async function BookSlotPage({
           <input type="hidden" name="partnerId" value={partnerId} />
 
           {slotOptions.length === 0 ? (
-            <p className="text-sm text-grey">No open slots left with {partner.name} in {MONTH_NAME.format(targetMonth)}.</p>
+            <p className="text-sm text-taupe">No open slots left with {partner.name} in {MONTH_NAME.format(targetMonth)}.</p>
           ) : (
             <SlotPicker slots={slotOptions} />
           )}
@@ -92,14 +95,11 @@ export default async function BookSlotPage({
               name="memberContext"
               rows={4}
               placeholder="A word on what's on your mind for this session."
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+              className="input-field"
             />
           </label>
 
-          <button
-            type="submit"
-            className="w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
-          >
+          <button type="submit" className="btn-primary w-fit">
             Confirm session
           </button>
         </form>

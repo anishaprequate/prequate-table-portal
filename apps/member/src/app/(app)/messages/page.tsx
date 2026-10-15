@@ -48,14 +48,17 @@ export default async function MessagesPage() {
         subtitle="A direct line to your relationship manager and partners."
       />
 
-      <ul className="flex flex-col divide-y divide-grey/15">
-        <li className="py-4">
-          <Link href="/messages/rm" className="flex items-center justify-between gap-3">
+      <ul className="flex flex-col divide-y divide-taupe/15">
+        <li>
+          <Link
+            href="/messages/rm"
+            className="-mx-3 flex items-center justify-between gap-3 rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+          >
             <div>
               <p className="font-display text-xl italic leading-tight text-ink">
                 Your Relationship Manager
               </p>
-              <p className="text-sm text-grey">
+              <p className="text-sm text-taupe">
                 {rmMessages[0] ? rmMessages[0].body.slice(0, 60) : "Say hello."}
               </p>
             </div>
@@ -65,11 +68,14 @@ export default async function MessagesPage() {
         {partners.map((partner) => {
           const last = lastByPartner.get(partner.id);
           return (
-            <li key={partner.id} className="py-4">
-              <Link href={`/messages/${partner.id}`} className="flex items-center justify-between gap-3">
+            <li key={partner.id}>
+              <Link
+                href={`/messages/${partner.id}`}
+                className="-mx-3 flex items-center justify-between gap-3 rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+              >
                 <div>
                   <p className="font-display text-xl italic leading-tight text-ink">{partner.name}</p>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-taupe">
                     {last ? last.body.slice(0, 60) : "No messages yet."}
                   </p>
                 </div>

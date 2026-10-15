@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@prequate/db";
 
 const COOKIE_NAME = "prequate_admin_session";
-const SESSION_DAYS = 14;
+// Long enough that phones stay signed in.
+const SESSION_DAYS = 30;
 
 export async function createAdminSession(userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
@@ -36,7 +37,7 @@ export function isFullAdmin(role: string): boolean {
 }
 
 // Associates get the same breadth of view as a full admin (members,
-// bookings, events, concierge, insight, messages, settings) but can't
+// bookings, events, insight, messages, settings) but can't
 // change anything — use this for page-level read access instead of
 // isFullAdmin wherever an associate should be let in to look.
 export function canView(role: string): boolean {

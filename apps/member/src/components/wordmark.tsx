@@ -1,10 +1,48 @@
+import Link from "next/link";
+
+// The seat mark: the ring is the table, the eight dots are the seats, the
+// gold seat is the member's. Per The Table's identity spec — on paper it
+// would be blind-embossed, on ink gold-foiled; on screen the seven "empty"
+// seats stay currentColor and only the member's seat carries foil gold.
+const SEATS = [
+  { cx: 50, cy: 18 }, // N
+  { cx: 72.6, cy: 27.4 }, // NE
+  { cx: 82, cy: 50 }, // E
+  { cx: 72.6, cy: 72.6 }, // SE
+  { cx: 50, cy: 82 }, // S
+  { cx: 27.4, cy: 72.6 }, // SW
+  { cx: 18, cy: 50 }, // W
+  { cx: 27.4, cy: 27.4 }, // NW — the member's seat, in foil
+];
+
+export function LogoMark({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="20" stroke="currentColor" strokeWidth="2" />
+      {SEATS.map((seat, i) => (
+        <circle
+          key={i}
+          cx={seat.cx}
+          cy={seat.cy}
+          r="3.6"
+          fill={i === SEATS.length - 1 ? "#C9A455" : "currentColor"}
+        />
+      ))}
+    </svg>
+  );
+}
+
 export function Wordmark() {
   return (
-    <div className="pointer-events-none fixed left-0 top-0 z-50 flex min-h-[48px] items-center bg-paper/90 px-6 py-4 backdrop-blur-sm">
-      <span className="font-sans text-base font-bold tracking-wide">
-        <span className="text-grey">PRE</span>
-        <span className="text-orange">QUATE</span>
+    <Link
+      href="/"
+      className="pointer-events-auto fixed left-0 top-0 z-50 hidden min-h-[48px] items-center gap-2.5 bg-bone/80 px-6 py-4 backdrop-blur-md transition-opacity duration-300 hover:opacity-70 md:flex"
+    >
+      <span className="text-ink">
+        <LogoMark />
       </span>
-    </div>
+      <span className="h-4 w-px bg-taupe/30" />
+      <span className="font-display text-lg text-ink">The Table</span>
+    </Link>
   );
 }

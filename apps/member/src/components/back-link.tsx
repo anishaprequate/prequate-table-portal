@@ -4,7 +4,7 @@ export function BackLink({ href, label = "Back" }: { href: string; label?: strin
   return (
     <Link
       href={href}
-      className="mt-10 hidden w-fit rounded-md bg-ink px-4 py-2 text-xs font-medium text-paper transition hover:bg-ink/90 md:inline-block"
+      className="btn-primary mt-10 hidden w-fit !px-4 !py-2 text-xs md:inline-flex"
     >
       {label}
     </Link>

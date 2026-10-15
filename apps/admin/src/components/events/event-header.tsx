@@ -27,8 +27,8 @@ export function EventHeader({ detail, writable }: { detail: EventDetail; writabl
         <img src={event.imageUrl} alt="" className="mb-6 h-[200px] w-full rounded-md object-cover" />
       )}
 
-      <div className="mb-1 flex items-start justify-between gap-4">
-        <h1 className="font-display text-[2.5rem] italic leading-[1.05] tracking-[-0.01em] text-ink">
+      <div className="mb-1 flex flex-col items-start gap-4">
+        <h1 className="w-full min-w-0 break-words font-display text-[2rem] italic leading-[1.05] tracking-[-0.01em] text-ink md:text-[2.5rem]">
           {event.title}
         </h1>
         {writable && isArchived && (
@@ -43,7 +43,7 @@ export function EventHeader({ detail, writable }: { detail: EventDetail; writabl
           </form>
         )}
         {writable && !isArchived && isCancelled && (
-          <div className="flex flex-shrink-0 gap-2">
+          <div className="flex flex-wrap gap-2">
             <form action={uncancelEvent}>
               <input type="hidden" name="eventId" value={event.id} />
               <button
@@ -62,7 +62,7 @@ export function EventHeader({ detail, writable }: { detail: EventDetail; writabl
           </div>
         )}
         {writable && !isArchived && !isCancelled && (
-          <div className="flex flex-shrink-0 gap-2">
+          <div className="flex flex-wrap gap-2">
             {isDraft && (
               <form action={publishEventDraft}>
                 <input type="hidden" name="eventId" value={event.id} />

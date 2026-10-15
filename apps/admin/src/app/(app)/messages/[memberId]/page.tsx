@@ -52,7 +52,7 @@ export default async function MessageThreadPage({
       <div className="flex-shrink-0 pb-4">
         <h1 className="mb-1 font-display text-4xl italic leading-tight text-ink sm:text-5xl">{member.name}</h1>
         <p className="text-sm text-grey">
-          {fullAdmin ? "Direct thread, separate from concierge." : "Your own thread with this member."}
+          {fullAdmin ? "Your direct thread with this member." : "Your own thread with this member."}
         </p>
       </div>
 

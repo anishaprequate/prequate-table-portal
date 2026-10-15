@@ -29,6 +29,15 @@ model User {
   email           String? @unique
   seatType        String?
   seatNumber      String? @unique
+  // When this member was seated at the Table — distinct from `createdAt`
+  // (record creation) and `firstLoginAt` (first login). Drives the Reserve
+  // Hour's anniversary reset and the Room's reverse-of-seat caption.
+  seatingDate     DateTime?
+  // First-cohort members carry a small permanent mark on their seat in the
+  // Room. A manually admin-set flag, not derived from seatingDate order.
+  foundingCohort  Boolean @default(false)
+  city            String?
+  company         String?
   bio             String?
   // A longer form of `bio`, curated by an admin (typically from the
   // member's LinkedIn) and shown only behind "Read more" on the directory
@@ -36,7 +45,6 @@ model User {
   longBio         String?
   linkedinUrl     String?
   photoUrl        String?
-  points          Int     @default(0)
   directoryOptOut Boolean @default(false)
 
   // Admin-set tags used to build targeted event invite lists (e.g. invite
@@ -86,6 +94,44 @@ model User {
   // the stubbed "tap" login screen to look up a member.
   chipUid String? @unique
 
+  // Notion sync. Notion ("Table Leads Master") decides who is a member; the
+  // portal decides activity. notionPageId links this account to its Notion
+  // row. accessCodeHash is an HMAC of the plate access code (never the code
+  // itself); once it has been used to log in, accessCodeRetiredAt is set and
+  // the code no longer works for login. profileEditedFields is a JSON array
+  // of profile fields the member edited in the portal, which the sync must
+  // never overwrite. notionFlag marks a member whose Notion status moved to
+  // Declined: only flagged for admin review, never deactivated.
+  notionPageId        String?   @unique
+  accessCodeHash      String?   @unique
+  accessCodeRetiredAt DateTime?
+  profileEditedFields String?
+  notionSyncedAt      DateTime?
+  notionFlag          String?
+
+  // Home. homeSeenAt is when the member last opened Home, so "since you were
+  // last here" has something to count from. tableLine is the member's own
+  // sentence about what the table means to them.
+  homeSeenAt DateTime?
+  tableLine  String?
+
+  // Meaningful only for role "PARTNER" — how many Hours they commit to
+  // the Table each calendar month. Drives the Partner Availability panel's
+  // scarcity line; deliberately separate from raw connected-calendar free
+  // slots, which are far more numerous and would read as "wide open"
+  // rather than the calm scarcity the panel is meant to convey.
+  monthlyHourCapacity Int @default(4)
+
+  // Admin console sign-in. username is stored lowercase and is unique; the
+  // password is stored only as a scrypt hash ("scrypt$salt$hash"). Members
+  // never have either: they sign in with a code or a plate.
+  username     String? @unique
+  passwordHash String?
+
+  // Meaningful only for role "PARTNER": the Google calendar whose recurring
+  // blocks mark the partner's Table hours. Empty until Google sync is set up.
+  tableHoursCalendarId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -95,7 +141,6 @@ model User {
   bookingsAsPartner         Booking[]                  @relation("PartnerBookings")
   briefsAuthored            Brief[]
   eventAttendances          EventAttendance[]
-  conciergeRequests         ConciergeRequest[]
   memberThread              Message[]                  @relation("MemberThread")
   partnerThread             Message[]                  @relation("PartnerThread")
   messagesAuthored          Message[]                  @relation("MessageAuthor")
@@ -110,6 +155,12 @@ model User {
   notifications             Notification[]
   eventBlastsSent           EventBlast[]
   eventPhotosUploaded       EventPhoto[]
+  roomEventsAsSeat          RoomEvent[]                @relation("RoomEventMember")
+  roomEventViews            RoomEventView[]            @relation("RoomEventViewer")
+  eventsHosted              Event[]                    @relation("EventHost")
+  availabilityBlocks        AvailabilityBlock[]
+  questionReplies           EventQuestionReply[]
+  tableRequests             TableRequest[]
 }
 
 // A fixed (but admin-editable) taxonomy of interest categories a member can
@@ -137,8 +188,8 @@ model MemberInterest {
 }
 
 // A member asking Prequate to broker an introduction to another member,
-// browsed from the directory. Tracked like a concierge request so it has a
-// status and doesn't get lost in a message thread.
+// browsed from the member directory. Tracked with its own
+// status field so it doesn't get lost in a message thread.
 model IntroductionRequest {
   id          String   @id @default(cuid())
   requesterId String
@@ -245,6 +296,12 @@ model Booking {
   status        String   @default("REQUESTED")
   memberContext String?
 
+  // How the Hour happens. Mode: "IN_PERSON" | "ONLINE". For an in person Hour
+  // the logistics are agreed separately. For an online one, location holds the
+  // Google Meet link that Google adds to the calendar event.
+  mode     String @default("IN_PERSON")
+  location String?
+
   // Set when this booking is a requested follow-up to an earlier session.
   parentBookingId String?
   parentBooking   Booking?  @relation("FollowUp", fields: [parentBookingId], references: [id])
@@ -277,10 +334,31 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   briefs Brief[]
+  offers BookingOffer[]
+}
+
+// Three alternative times offered to a member when a partner cancels or
+// asks to move their Hour. One tap accepts one of them.
+// Reason: "CANCELLED" | "RESCHEDULE". slots is a JSON array of
+// { start, end } ISO strings. An offer is open until acceptedAt is set or
+// expiresAt passes.
+model BookingOffer {
+  id             String    @id @default(cuid())
+  bookingId      String
+  booking        Booking   @relation(fields: [bookingId], references: [id])
+  reason         String
+  slots          String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedStart  DateTime?
+  createdAt      DateTime  @default(now())
 }
 
 model Brief {
   id        String   @id @default(cuid())
+  // What the partner posted after an Hour: "NOTES" (meeting notes), "BRIEF",
+  // "OBSERVATION" (a follow-up observation) or "FILE".
+  kind      String   @default("NOTES")
   bookingId String
   booking   Booking  @relation(fields: [bookingId], references: [id])
   authorId  String
@@ -329,7 +407,7 @@ model Event {
 
   // JSON-encoded array of question strings an admin has added for this
   // event's RSVP form. Same parse/stringify-at-the-boundary convention as
-  // elsewhere in this schema (see ConciergeCategory.examples).
+  // elsewhere in this schema.
   registrationQuestions String?
 
   // Whether a member can bring anyone at all when they RSVP. Off by
@@ -348,7 +426,7 @@ model Event {
   sponsorLogoUrl  String?
   // JSON-encoded array of { name, email } for guests beyond the membership
   // — not tied to a Member record. Same parse/stringify-at-the-boundary
-  // convention as elsewhere in this schema (see ConciergeCategory.examples).
+  // convention as elsewhere in this schema.
   externalGuests  String?
 
   // Soft-delete: deleting an event archives it instead of removing the
@@ -366,6 +444,16 @@ model Event {
   cancelledAt        DateTime?
   cancellationReason String?
 
+  // Home. The question a dinner asks of its members, the partner who hosts
+  // (only they read the replies), and the on-the-day details.
+  dinnerQuestion String?
+  hostPartnerId  String?
+  hostPartner    User?   @relation("EventHost", fields: [hostPartnerId], references: [id])
+  mapUrl         String?
+  dressCode      String?
+  arrivalNote    String?
+
+  questionReplies EventQuestionReply[]
   attendances EventAttendance[]
   ticketTypes EventTicketType[]
   blasts      EventBlast[]
@@ -463,6 +551,15 @@ model EventAttendance {
   // joined — a member can be invited without having joined yet.
   invited Boolean @default(false)
 
+  // When the invitation was released to the member. An invited row with no
+  // invitationSentAt is a name on the admin's list only: the member cannot
+  // see the event until it is sent.
+  invitationSentAt DateTime?
+
+  // Set when the member declines an invitation (or withdraws after
+  // accepting). Cleared if they accept again.
+  declinedAt DateTime?
+
   // Richer RSVP detail, collected on join. Only surfaced in the UI for
   // invite-only / Annual Gathering-style events, but generic on the model
   // so any event can use them.
@@ -472,7 +569,7 @@ model EventAttendance {
   // JSON-encoded array of named guests, replacing the anonymous guestCount
   // number for events where who's coming matters (e.g. the Annual
   // Gathering) — same parse/stringify-at-the-boundary convention as
-  // elsewhere in this schema (see ConciergeCategory.examples).
+  // elsewhere in this schema.
   guestNames String?
 
   // Post-event survey — sent 24 hours after the event ends to confirmed
@@ -490,56 +587,8 @@ model EventAttendance {
   @@unique([eventId, memberId])
 }
 
-// Structured concierge catalog (group / category / examples), editable
-// from the admin console rather than hardcoded in UI copy.
-// `examples` is a JSON-encoded string array — SQLite has no native array
-// type; parse/stringify at the application boundary (see packages/core).
-model ConciergeCategory {
-  id        String @id @default(cuid())
-  group     String
-  category  String
-  examples  String
-  sortOrder Int    @default(0)
-
-  // Target turnaround, in days, for requests in this category. Null means
-  // no SLA is tracked for it. Set once here; each request's due date is
-  // computed from this at submission time (see ConciergeRequest.dueAt).
-  slaDays Int?
-
-  requests ConciergeRequest[]
-}
-
-model ConciergeRequest {
-  id               String             @id @default(cuid())
-  memberId         String
-  member           User               @relation(fields: [memberId], references: [id])
-  categoryId       String?
-  category         ConciergeCategory? @relation(fields: [categoryId], references: [id])
-  customText       String?
-  // JSON-encoded array of the specific examples chosen within the category
-  // (e.g. ["Reservations", "Private chef access"]) — parse/stringify at the
-  // application boundary, same convention as ConciergeCategory.examples.
-  selectedExamples String?
-  detail           String?
-  // Status: "SUBMITTED" | "AWAITING_APPROVAL" | "ACCEPTED" | "DECLINED" | "FULFILLED"
-  // AWAITING_APPROVAL: admin has proposed something (in vendorNote) and is
-  // waiting on the member to approve or decline it.
-  status           String             @default("SUBMITTED")
-  vendorNote       String?
-  pointsAwarded    Int                @default(0)
-  // Computed at submission from the category's slaDays. Null if the
-  // category had no SLA set at the time this request was made.
-  dueAt            DateTime?
-  // Set when this request was opened via a fixed NFC location tap point
-  // (a plaque at the Table or a lounge) rather than the normal Concierge
-  // flow — notes where the tap happened, e.g. "Lounge".
-  locationContext  String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-}
-
 // One thread per member with the RM, plus one further thread per member
-// per partner who has messaged them — all separate from concierge.
+// per partner who has messaged them.
 // partnerId is null for the RM thread; set to a specific partner's id for
 // that partner's own private thread with this member.
 model Message {
@@ -569,7 +618,7 @@ model Notification {
   recipientId     String
   recipient       User      @relation(fields: [recipientId], references: [id])
   // Type: "new_message" | "event_cancelled" | "member_inactive" |
-  // "concierge_sla_breach" | "intro_request" | "event_survey"
+  // "intro_request" | "event_survey"
   type            String
   message         String
   relatedEntityType String?
@@ -588,7 +637,7 @@ model InsightPost {
   body        String
   // JSON-encoded array of freeform tag strings, admin-set at write time.
   // Same parse/stringify-at-the-boundary convention as elsewhere in this
-  // schema (see ConciergeCategory.examples).
+  // schema.
   tags        String?
   authorId    String
   author      User      @relation(fields: [authorId], references: [id])
@@ -651,5 +700,95 @@ model InsightView {
   createdAt DateTime    @default(now())
 
   @@unique([memberId, postId])
+}
+
+// One row each time a member's seat is filled — powers the Room's
+// one-time "Seat 11 was taken on Tuesday" caption. Not a log of every
+// seating change, just new-member arrivals.
+model RoomEvent {
+  id       String   @id @default(cuid())
+  memberId String
+  member   User     @relation("RoomEventMember", fields: [memberId], references: [id])
+  filledAt DateTime @default(now())
+
+  views RoomEventView[]
+}
+
+// Marks that a given member has already seen a given RoomEvent's caption —
+// "show once per member, then never again" per member, not once globally.
+model RoomEventView {
+  id          String    @id @default(cuid())
+  roomEventId String
+  roomEvent   RoomEvent @relation(fields: [roomEventId], references: [id])
+  viewerId    String
+  viewer      User      @relation("RoomEventViewer", fields: [viewerId], references: [id])
+  seenAt      DateTime  @default(now())
+
+  @@unique([roomEventId, viewerId])
+}
+
+// Singleton row (id is always "singleton") for app-wide toggles that don't
+// belong to any one member or partner — starts with just the Room's
+// optional, name-free activity pulse line.
+// A member's private reply to a dinner's question. One per member per event,
+// editable. Read only by the event's host partner.
+model EventQuestionReply {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  memberId  String
+  member    User     @relation(fields: [memberId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, memberId])
+}
+
+// "Ask the table" on Home. Introductions keep their own model; this holds the
+// rest. Type: "BRIEF" | "PEER_HOUR" | "RESTAURANT". Status: "NEW" | "IN_PROGRESS" | "DONE".
+model TableRequest {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    User     @relation(fields: [memberId], references: [id])
+  type      String
+  details   String
+  status    String   @default("NEW")
+  adminNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Time a partner has marked as not available, on top of whatever their Table
+// hours say. Until Google Calendar sync is on this is where "correct my
+// availability" lives; afterwards it can mirror into Google.
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  partnerId String
+  partner   User     @relation(fields: [partnerId], references: [id])
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([partnerId, startTime])
+}
+
+model AppSettings {
+  id               String   @id @default("singleton")
+  roomPulseEnabled Boolean  @default(true)
+  // Last Notion sync, for the admin status line.
+  notionLastSyncAt      DateTime?
+  notionLastSyncSummary String?
+  // The book of the year, shown on the member Home. Empty until set.
+  bookTitle    String?
+  bookAuthor   String?
+  bookDinnerAt DateTime?
+  // Crisis access, shown quietly in the member's Settings. Empty means the
+  // app's built-in wording is used. Edited by admin in Settings.
+  // No longer used: the Hour is now online or in person, with no default place.
+  hourPlace           String?
+  crisisAccessText    String?
+  crisisAccessContact String?
+  updatedAt        DateTime @updatedAt
 }
 

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { formatSlot } from "@/lib/format";
-import { findBookingInMonth, formatMonthLabel } from "@/lib/monthly-cap";
+import { getOpenOffers } from "@/lib/hour-offers";
 import { PageHero } from "@/components/page-hero";
+import { OfferCard } from "@/components/hour/offer-card";
+import { postKindLabel } from "@/lib/hour-posts";
 
 export default async function TheHourPage({
   searchParams,
@@ -14,11 +16,18 @@ export default async function TheHourPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const bookings = await prisma.booking.findMany({
-    where: { memberId: user.id },
-    include: { partner: true },
-    orderBy: { startTime: "desc" },
-  });
+  const [bookings, offers] = await Promise.all([
+    prisma.booking.findMany({
+      where: { memberId: user.id },
+      include: {
+        partner: true,
+        // What the partner shared afterwards.
+        briefs: { where: { authorId: { not: user.id } }, orderBy: { createdAt: "desc" } },
+      },
+      orderBy: { startTime: "desc" },
+    }),
+    getOpenOffers(user.id),
+  ]);
 
   const now = new Date();
   const upcoming = bookings
@@ -26,58 +35,47 @@ export default async function TheHourPage({
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   const past = bookings.filter((b) => b.startTime < now || b.status === "CANCELLED");
 
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const [currentMonthBooking, nextMonthBooking] = await Promise.all([
-    findBookingInMonth(user.id, now),
-    findBookingInMonth(user.id, nextMonthStart),
-  ]);
-
-  // Book a session always stays available as long as either month still
-  // has room — it just skips straight to whichever month is still open,
-  // or asks which one when both are.
-  const bookHref = currentMonthBooking && nextMonthBooking
-    ? null
-    : currentMonthBooking
-      ? "/the-hour/book?month=1"
-      : nextMonthBooking
-        ? "/the-hour/book?month=0"
-        : "/the-hour/book/month";
+  const clamp = (s: string, n = 140) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
 
   return (
     <div className="max-w-2xl">
       {searchParams.confirmed && (
-        <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">
-          Session confirmed.
-        </p>
+        <p className="card mb-6 animate-fade-up bg-foil/5 px-3 py-2 text-sm text-ink">Session confirmed.</p>
       )}
 
       <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PageHero title="The" accent="Hour." subtitle="Time with a partner, on your terms." />
-        {bookHref ? (
-          <Link
-            href={bookHref}
-            className="w-fit flex-shrink-0 rounded-md bg-orange px-5 py-3 text-sm font-medium text-ink transition hover:bg-deep-orange hover:text-paper"
-          >
-            Book a session
-          </Link>
-        ) : (
-          <p className="text-sm text-grey">
-            You've booked your Hour for {formatMonthLabel(now)} and {formatMonthLabel(nextMonthStart)}.
-          </p>
-        )}
+        <Link href="/the-hour/book" className="btn-primary w-fit flex-shrink-0 !bg-foil !text-ink hover:!text-bone">
+          Book an Hour
+        </Link>
       </div>
 
+      {offers.length > 0 && (
+        <div className="mb-10 flex flex-col gap-4">
+          {offers.map((o) => (
+            <OfferCard key={o.id} offer={o} />
+          ))}
+        </div>
+      )}
+
       <section className="mb-12">
-        <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Upcoming</h2>
+        <h2 className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Upcoming</h2>
         {upcoming.length === 0 && (
-          <p className="text-sm text-grey">Nothing booked. Start with the button above.</p>
+          <p className="text-sm text-taupe">Nothing booked. Start with the button above.</p>
         )}
-        <ul className="flex flex-col divide-y divide-grey/15">
+        <ul className="flex flex-col divide-y divide-taupe/15">
           {upcoming.map((booking) => (
-            <li key={booking.id} className="py-4">
-              <Link href={`/the-hour/${booking.id}`} className="block">
+            <li key={booking.id}>
+              <Link
+                href={`/the-hour/${booking.id}`}
+                className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+              >
                 <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
-                <p className="text-sm text-grey">{formatSlot(booking.startTime)}</p>
+                <p className="text-sm text-taupe">
+                  {formatSlot(booking.startTime)}
+                  {booking.status === "RESCHEDULE_REQUESTED" && " · time to be moved"}
+                </p>
+                <p className="mt-0.5 text-xs text-taupe">{booking.mode === "ONLINE" ? "Online" : "In person"}</p>
               </Link>
             </li>
           ))}
@@ -85,32 +83,51 @@ export default async function TheHourPage({
       </section>
 
       <details className="group">
-        <summary className="mb-4 flex cursor-pointer list-none items-center gap-2 text-xs uppercase tracking-wide text-grey [&::-webkit-details-marker]:hidden">
-          Past ({past.length})
+        <summary className="tap mb-4 flex min-h-[44px] cursor-pointer list-none items-center gap-2 text-xs uppercase tracking-[0.28em] text-taupe transition-colors duration-300 hover:text-ink [&::-webkit-details-marker]:hidden">
+          History ({past.length})
           <svg
             width="10"
             height="10"
             viewBox="0 0 10 10"
-            className="transition group-open:rotate-180"
+            className="transition-transform duration-300 ease-out group-open:rotate-180"
           >
             <path d="M1.5 3.5L5 7L8.5 3.5" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </summary>
         {past.length === 0 ? (
-          <p className="text-sm text-grey">No sessions yet.</p>
+          <p className="text-sm text-taupe">No Hours yet.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-grey/15">
-            {past.map((booking) => (
-              <li key={booking.id} className="py-4">
-                <Link href={`/the-hour/${booking.id}`} className="block">
-                  <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
-                  <p className="text-sm text-grey">
-                    {formatSlot(booking.startTime)}
-                    {booking.status === "CANCELLED" && " — cancelled"}
-                  </p>
-                </Link>
-              </li>
-            ))}
+          <ul className="flex animate-fade-in flex-col divide-y divide-taupe/15">
+            {past.map((booking) => {
+              const first = booking.partner.name.split(" ")[0];
+              const shared = booking.briefs[0];
+              return (
+                <li key={booking.id}>
+                  <Link
+                    href={`/the-hour/${booking.id}`}
+                    className="-mx-3 block rounded-md px-3 py-4 transition-colors duration-300 hover:bg-ink/[0.03]"
+                  >
+                    <p className="font-display text-xl italic leading-tight text-ink">{booking.partner.name}</p>
+                    <p className="text-sm text-taupe">
+                      {formatSlot(booking.startTime)}
+                      {booking.status === "CANCELLED" && ", cancelled"}
+                    </p>
+                    {booking.memberContext && (
+                      <p className="mt-2 text-sm text-ink">
+                        <span className="text-xs uppercase tracking-[0.2em] text-taupe">You </span>
+                        {clamp(booking.memberContext)}
+                      </p>
+                    )}
+                    {shared && (shared.content || shared.fileName) && (
+                      <p className="mt-1.5 text-sm text-ink">
+                        <span className="text-xs uppercase tracking-[0.2em] text-taupe">{first}, {postKindLabel(shared.kind).toLowerCase()} </span>
+                        {shared.content ? clamp(shared.content) : `Shared ${shared.fileName}`}
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </details>

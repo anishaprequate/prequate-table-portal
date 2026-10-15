@@ -21,7 +21,7 @@ export default async function MemberActivityPage({
   const member = await getMemberOrNull(params.id);
   if (!member) notFound();
 
-  const { hoursUsed, conciergeUsed, bookingStats } = await getMemberActivity(member.id);
+  const { hoursUsed, bookingStats } = await getMemberActivity(member.id);
 
   return (
     <div className="max-w-md">
@@ -34,10 +34,6 @@ export default async function MemberActivityPage({
         <p className="mb-3 text-xs uppercase tracking-wide text-grey">Standing</p>
         <dl className="flex flex-col gap-3">
           <div>
-            <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Points</dt>
-            <dd className="text-sm text-ink">{member.points}</dd>
-          </div>
-          <div>
             <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Last used the app</dt>
             <dd className="text-sm text-ink">{member.lastActiveAt ? formatSlot(member.lastActiveAt) : "Never"}</dd>
           </div>
@@ -45,7 +41,7 @@ export default async function MemberActivityPage({
       </div>
 
       <div className="mb-6 rounded-md border border-grey/15 p-4">
-        <p className="mb-3 text-xs uppercase tracking-wide text-grey">The Hour &amp; Concierge</p>
+        <p className="mb-3 text-xs uppercase tracking-wide text-grey">The Hour</p>
         <dl className="flex flex-col gap-3">
           <div>
             <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Hours used</dt>
@@ -57,10 +53,6 @@ export default async function MemberActivityPage({
               {bookingStats.noShows} no-show{bookingStats.noShows === 1 ? "" : "s"} ·{" "}
               {bookingStats.lateCancellations} late cancellation{bookingStats.lateCancellations === 1 ? "" : "s"}
             </dd>
-          </div>
-          <div>
-            <dt className="mb-1 text-xs uppercase tracking-wide text-grey">Concierge services used</dt>
-            <dd className="text-sm text-ink">{conciergeUsed}</dd>
           </div>
         </dl>
       </div>

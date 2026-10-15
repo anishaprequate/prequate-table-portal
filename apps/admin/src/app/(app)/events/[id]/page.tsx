@@ -6,6 +6,7 @@ import { getEventDetail } from "@/lib/event-detail";
 import { EventHeader } from "@/components/events/event-header";
 import { EventDetailNav } from "@/components/events/event-detail-nav";
 import { EventStatsBar } from "@/components/events/event-stats-bar";
+import { InviteesCard } from "@/components/events/invitees-card";
 import { BackLink } from "@/components/back-link";
 
 export default async function EventOverviewPage({
@@ -31,6 +32,7 @@ export default async function EventOverviewPage({
       <EventDetailNav eventId={event.id} active="overview" showEdit={writable} />
 
       <EventStatsBar
+        eventId={event.id}
         capacity={event.capacity}
         takenSpots={takenSpots}
         joinedCount={totalJoined}
@@ -38,6 +40,10 @@ export default async function EventOverviewPage({
         pendingCount={totalPending}
         checkedInCount={checkedInCount}
       />
+
+      {(event.inviteOnly || event.attendances.some((a) => a.invited)) && (
+        <InviteesCard eventId={event.id} attendances={event.attendances} writable={writable} />
+      )}
 
       {isPast && (
         <div className="mb-6 rounded-md border border-grey/15 p-4">
@@ -83,7 +89,7 @@ export default async function EventOverviewPage({
           {event.inviteOnly && (
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-grey">Access</dt>
-              <dd className="text-ink">Invite-only</dd>
+              <dd className="text-ink">Closed, by invitation</dd>
             </div>
           )}
           {event.approvalRequired && (

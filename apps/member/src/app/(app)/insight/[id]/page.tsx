@@ -44,7 +44,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
           <button
             type="submit"
             aria-label={bookmark ? "Remove bookmark" : "Bookmark this post"}
-            className={`transition ${bookmark ? "text-deep-orange hover:text-ink" : "text-grey hover:text-ink"}`}
+            className={`flex h-11 w-11 items-center justify-center transition ${bookmark ? "text-clay hover:text-ink" : "text-taupe hover:text-ink"}`}
           >
             <svg width="24" height="24" viewBox="0 0 24 24">
               {bookmark ? (
@@ -61,7 +61,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
           </button>
         </form>
       </div>
-      {post.subheading && <p className="mb-6 text-xl leading-snug text-grey">{post.subheading}</p>}
+      {post.subheading && <p className="mb-6 text-xl leading-snug text-taupe">{post.subheading}</p>}
 
       <div className="mb-8 flex items-center gap-3">
         {post.author.photoUrl ? (
@@ -73,13 +73,13 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
             draggable={false}
           />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange/10 font-display text-sm text-ink">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foil/10 font-display text-sm text-ink">
             {post.author.name.charAt(0)}
           </div>
         )}
         <div className="text-sm">
           <p className="font-medium text-ink">{post.author.name}</p>
-          <p className="text-grey">
+          <p className="text-taupe">
             {formatDateOnly(post.createdAt)} · {readMinutes} min read
           </p>
         </div>
@@ -88,7 +88,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
       {tags.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           {tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-orange/10 px-2.5 py-1 text-xs text-deep-orange">
+            <span key={tag} className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-clay">
               {tag}
             </span>
           ))}

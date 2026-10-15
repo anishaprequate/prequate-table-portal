@@ -148,6 +148,55 @@ export default async function MemberEditPage({ params }: { params: { id: string 
           Used to build targeted event invite lists — freeform, so keep spelling consistent across members.
         </p>
 
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1.5 text-sm">
+            Company
+            <input
+              type="text"
+              name="company"
+              defaultValue={member.company ?? ""}
+              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            City
+            <input
+              type="text"
+              name="city"
+              defaultValue={member.city ?? ""}
+              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+            />
+          </label>
+        </div>
+        <p className="-mt-4 text-xs text-grey">
+          Company and city are what an opted-in directory card, and the Room's own seat reveal, show to other
+          members.
+        </p>
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          Seating date
+          <input
+            type="date"
+            name="seatingDate"
+            defaultValue={member.seatingDate ? member.seatingDate.toISOString().slice(0, 10) : ""}
+            className="w-fit rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
+          />
+        </label>
+        <p className="-mt-4 text-xs text-grey">
+          When this member was seated at the Table. Drives the Reserve Hour's anniversary reset and the Room's
+          reverse-of-seat caption.
+        </p>
+
+        <label className="flex items-center gap-2 text-sm text-grey">
+          <input
+            type="checkbox"
+            name="foundingCohort"
+            defaultChecked={member.foundingCohort}
+            className="h-4 w-4 accent-orange"
+          />
+          Founding cohort — carries a permanent mark on their seat in the Room
+        </label>
+
         <label className="flex items-center gap-2 text-sm text-grey">
           <input
             type="checkbox"
@@ -156,16 +205,6 @@ export default async function MemberEditPage({ params }: { params: { id: string 
             className="h-4 w-4 accent-orange"
           />
           Visible in the member directory
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          Points balance
-          <input
-            type="number"
-            name="points"
-            defaultValue={member.points}
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-          />
         </label>
 
         <div className="flex gap-3">

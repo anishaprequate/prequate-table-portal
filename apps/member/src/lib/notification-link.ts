@@ -11,10 +11,8 @@ export function notificationLink(notification: {
     case "event":
       if (notification.type === "event_survey") return id ? `/events/${id}/survey` : "/events";
       return id ? `/events/${id}` : "/events";
-    case "concierge":
-      return id ? `/concierge/${id}` : "/concierge";
     case "intro_request":
-      return id ? `/directory/requests/${id}` : "/directory";
+      return id ? `/members/requests/${id}` : "/members";
     case "message_thread":
       return id ? `/messages/${id}` : "/messages";
     default:

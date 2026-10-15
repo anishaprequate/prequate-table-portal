@@ -27,6 +27,7 @@ export default async function EventInsightsPage({ params }: { params: { id: stri
       <EventDetailNav eventId={event.id} active="insights" showEdit={writable} />
 
       <EventStatsBar
+        eventId={event.id}
         capacity={event.capacity}
         takenSpots={takenSpots}
         joinedCount={totalJoined}

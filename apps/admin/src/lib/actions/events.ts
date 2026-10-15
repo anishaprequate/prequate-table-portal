@@ -111,6 +111,24 @@ function parseExternalGuests(raw: FormDataEntryValue | null): string | null {
   return guests.length > 0 ? JSON.stringify(guests) : null;
 }
 
+// The fields that feed the member Home. A host must be a partner; a map link
+// must be a web address.
+async function parseHomeFields(formData: FormData) {
+  const text = (k: string) => String(formData.get(k) ?? "").trim() || null;
+  const hostRaw = text("hostPartnerId");
+  const host = hostRaw
+    ? await prisma.user.findFirst({ where: { id: hostRaw, role: "PARTNER" }, select: { id: true } })
+    : null;
+  const mapRaw = text("mapUrl");
+  return {
+    dinnerQuestion: text("dinnerQuestion"),
+    hostPartnerId: host?.id ?? null,
+    mapUrl: mapRaw && /^https?:\/\//i.test(mapRaw) ? mapRaw : null,
+    dressCode: text("dressCode"),
+    arrivalNote: text("arrivalNote"),
+  };
+}
+
 export async function publishEvent(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
@@ -161,10 +179,32 @@ export async function createEvent(formData: FormData) {
   const sponsorLogoUrl = String(formData.get("sponsorLogoUrl") ?? "").trim() || null;
   const externalGuests = parseExternalGuests(formData.get("externalGuests"));
   const intent = String(formData.get("intent") ?? "publish");
+  const inviteOnly = formData.get("inviteOnly") === "on";
+  const inviteeIds = inviteOnly ? formData.getAll("memberIds").map(String).filter(Boolean) : [];
+  const homeFields = await parseHomeFields(formData);
 
   if (!title || Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
     redirect("/events/new?error=incomplete");
   }
+
+  // The same event created a moment ago (a second tap on a slow connection)
+  // is the same event: open it instead of making another.
+  const duplicate = await prisma.event.findFirst({
+    where: { title, startTime, endTime, createdAt: { gt: new Date(Date.now() - 30_000) } },
+    select: { id: true },
+  });
+  if (duplicate) redirect(`/events/${duplicate.id}?saved=1`);
+
+  // Never two live events with the same title at the same time. Tell the admin
+  // which one already exists instead of quietly making another.
+  const clash = await prisma.event.findFirst({
+    where: { title, startTime, archivedAt: null },
+    select: { id: true },
+  });
+  if (clash) redirect(`/events/new?duplicate=${clash.id}`);
+
+  // Publishing a closed event sends its invitations: a member sees it at once.
+  const sentAt = intent === "publish" ? new Date() : null;
 
   const event = await prisma.event.create({
     data: {
@@ -175,13 +215,20 @@ export async function createEvent(formData: FormData) {
       endTime,
       tier,
       capacity,
+      inviteOnly,
       approvalRequired,
       allowPlusOne,
       registrationQuestions,
       sponsorName,
       sponsorLogoUrl,
       externalGuests,
+      ...homeFields,
       publishedAt: intent === "publish" ? new Date() : null,
+      // Named at creation. They go out now if the event is published, and when
+      // it is published if it is saved as a draft.
+      ...(inviteeIds.length
+        ? { attendances: { create: inviteeIds.map((memberId) => ({ memberId, invited: true, invitationSentAt: sentAt })) } }
+        : {}),
     },
   });
 
@@ -213,6 +260,7 @@ export async function cloneEvent(formData: FormData) {
       tier: source.tier,
       capacity: source.capacity,
       attendeeVisibility: source.attendeeVisibility,
+      inviteOnly: source.inviteOnly,
       approvalRequired: source.approvalRequired,
       registrationQuestions: source.registrationQuestions,
       publishedAt: new Date(),
@@ -245,6 +293,7 @@ export async function updateEventDetails(formData: FormData) {
   const sponsorName = String(formData.get("sponsorName") ?? "").trim() || null;
   const sponsorLogoUrl = String(formData.get("sponsorLogoUrl") ?? "").trim() || null;
   const externalGuests = parseExternalGuests(formData.get("externalGuests"));
+  const homeFields = await parseHomeFields(formData);
 
   const imageUrl = await storeImage(eventId, formData.get("image"));
 
@@ -264,6 +313,7 @@ export async function updateEventDetails(formData: FormData) {
       sponsorName,
       sponsorLogoUrl,
       externalGuests,
+      ...homeFields,
       ...(imageUrl ? { imageUrl } : {}),
     },
   });
@@ -302,7 +352,13 @@ export async function publishEventDraft(formData: FormData) {
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
 
   const eventId = String(formData.get("eventId") ?? "");
-  await prisma.event.update({ where: { id: eventId }, data: { publishedAt: new Date() } });
+  const now = new Date();
+  await prisma.event.update({ where: { id: eventId }, data: { publishedAt: now } });
+  // Invitations named while it was a draft go out now.
+  await prisma.eventAttendance.updateMany({
+    where: { eventId, invited: true, invitationSentAt: null },
+    data: { invitationSentAt: now },
+  });
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
@@ -418,22 +474,6 @@ export async function uncancelEvent(formData: FormData) {
   redirect(`/events/${eventId}?saved=1`);
 }
 
-export async function generateInviteLink(formData: FormData) {
-  const admin = await getCurrentAdmin();
-  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
-
-  const eventId = String(formData.get("eventId") ?? "");
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) redirect("/events");
-
-  if (!event.inviteToken) {
-    await prisma.event.update({ where: { id: eventId }, data: { inviteToken: crypto.randomUUID() } });
-  }
-
-  revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}/edit?saved=1`);
-}
-
 export async function addTicketType(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
@@ -470,15 +510,36 @@ export async function inviteMembersToEvent(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const memberIds = formData.getAll("memberIds").map(String).filter(Boolean);
 
+  // On a published event, inviting someone sends the invitation straight away.
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { publishedAt: true } });
+  const sentAt = event?.publishedAt ? new Date() : null;
+
   await Promise.all(
     memberIds.map((memberId) =>
       prisma.eventAttendance.upsert({
         where: { eventId_memberId: { eventId, memberId } },
-        create: { eventId, memberId, invited: true },
-        update: { invited: true },
+        create: { eventId, memberId, invited: true, invitationSentAt: sentAt },
+        update: { invited: true, ...(sentAt ? { invitationSentAt: sentAt } : {}) },
       }),
     ),
   );
+
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}/edit?saved=1`);
+}
+
+// Release every invitation that has been picked but not yet sent. Until this
+// runs, an invited member cannot see a closed event at all. Safe to run again
+// after adding more names: only unsent invitations are touched.
+export async function sendEventInvitations(formData: FormData) {
+  const admin = await getCurrentAdmin();
+  if (!admin || !isFullAdmin(admin.role) || !canWrite(admin.role)) redirect("/bookings");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  await prisma.eventAttendance.updateMany({
+    where: { eventId, invited: true, invitationSentAt: null },
+    data: { invitationSentAt: new Date(), declinedAt: null },
+  });
 
   revalidatePath(`/events/${eventId}`);
   redirect(`/events/${eventId}/edit?saved=1`);

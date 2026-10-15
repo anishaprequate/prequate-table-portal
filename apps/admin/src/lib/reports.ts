@@ -52,8 +52,6 @@ export async function getReportsData(filters: ReportFilters) {
     partners,
     bookings,
     allPublishedEvents,
-    conciergeRequests,
-    conciergeCategories,
     introRequests,
     insightPosts,
     insightViews,
@@ -68,8 +66,6 @@ export async function getReportsData(filters: ReportFilters) {
       include: { attendances: { include: { member: true } } },
       orderBy: { startTime: "desc" },
     }),
-    prisma.conciergeRequest.findMany({ include: { member: true, category: true } }),
-    prisma.conciergeCategory.findMany(),
     prisma.introductionRequest.findMany({ include: { requester: true, target: true } }),
     prisma.insightPost.findMany({ where: { publishedAt: { not: null } } }),
     prisma.insightView.findMany({ include: { member: true } }),
@@ -187,80 +183,6 @@ export async function getReportsData(filters: ReportFilters) {
     })
     .sort((a, b) => b.rate - a.rate)
     .slice(0, 10);
-
-  // --- 3b/4. Concierge volume + time-to-fulfillment over time ---
-  const conciergeByMonth = months.map((key) => {
-    const inMonth = conciergeRequests.filter((r) => monthKey(r.createdAt) === key);
-    const fulfilled = inMonth.filter((r) => r.status === "FULFILLED");
-    const avgDays = fulfilled.length
-      ? fulfilled.reduce((sum, r) => sum + (r.updatedAt.getTime() - r.createdAt.getTime()), 0) /
-        fulfilled.length /
-        (24 * 60 * 60 * 1000)
-      : 0;
-    return {
-      month: key,
-      label: monthLabel(key),
-      volume: inMonth.length,
-      avgDays: Math.round(avgDays * 10) / 10,
-      records: inMonth.map(
-        (r): DrillRecord => ({
-          label: r.member.name,
-          sublabel: r.category?.category ?? r.customText ?? "Something else",
-          href: `/members/${r.memberId}`,
-        }),
-      ),
-    };
-  });
-
-  // --- Most-used services donut ---
-  const groups = Array.from(new Set(conciergeCategories.map((c) => c.group)));
-  const servicesByGroup = groups.map((group) => {
-    const categoryIds = new Set(conciergeCategories.filter((c) => c.group === group).map((c) => c.id));
-    const inGroup = conciergeRequests.filter((r) => r.categoryId && categoryIds.has(r.categoryId));
-    return {
-      group,
-      count: inGroup.length,
-      records: inGroup.map(
-        (r): DrillRecord => ({
-          label: r.member.name,
-          sublabel: r.category?.category ?? "",
-          href: `/members/${r.memberId}`,
-        }),
-      ),
-    };
-  });
-
-  // --- 5. Points balance trend (cumulative, monthly) ---
-  const pointsAwardedEvents = conciergeRequests.filter((r) => r.pointsAwarded > 0);
-  const pointEvents = [...pointsAwardedEvents].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
-  let running = 0;
-  const pointsTrend = months.map((key) => {
-    const [year, month] = key.split("-").map(Number);
-    const cutoff = new Date(year, month, 1);
-    while (pointEvents.length && pointEvents[0].updatedAt < cutoff) {
-      running += pointEvents.shift()!.pointsAwarded;
-    }
-    // Records for this bucket are the requests actually awarded points
-    // during this specific month — the natural drill-down set, distinct
-    // from the running cumulative balance itself.
-    const awardedThisMonth = pointsAwardedEvents.filter((r) => monthKey(r.updatedAt) === key);
-    return {
-      month: key,
-      label: monthLabel(key),
-      balance: running,
-      records: awardedThisMonth.map(
-        (r): DrillRecord => ({
-          label: r.member.name,
-          sublabel: `+${r.pointsAwarded} pts · ${r.category?.category ?? r.customText ?? "Something else"}`,
-          href: `/members/${r.memberId}`,
-        }),
-      ),
-    };
-  });
-  // Any remaining events happened at/after the last bucket's cutoff — fold
-  // them into the final point so the trend always ends at today's total.
-  for (const remaining of pointEvents) running += remaining.pointsAwarded;
-  if (pointsTrend.length) pointsTrend[pointsTrend.length - 1].balance = running;
 
   // --- 6. Directory / introduction-request activity per month ---
   const introByMonth = months.map((key) => {
@@ -390,9 +312,6 @@ export async function getReportsData(filters: ReportFilters) {
     surveyByEvent,
     surveyByTier,
     noShowByEvent,
-    conciergeByMonth,
-    servicesByGroup,
-    pointsTrend,
     introByMonth,
     insightReadership,
     responseTimeByMonth,

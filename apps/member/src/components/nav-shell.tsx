@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { signOut } from "@/lib/actions/auth";
+import { LogoMark } from "@/components/wordmark";
+import { UnreadBadge } from "@/components/unread-badge";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -11,8 +14,7 @@ const NAV_ITEMS = [
   { href: "/home", label: "Home" },
   { href: "/the-hour", label: "The Hour" },
   { href: "/events", label: "Events" },
-  { href: "/concierge", label: "Concierge" },
-  { href: "/directory", label: "Directory" },
+  { href: "/members", label: "Members" },
   { href: "/insight", label: "Insight" },
   { href: "/messages", label: "Messages" },
   { href: "/notifications", label: "Notifications" },
@@ -34,6 +36,16 @@ export function NavShell({
   const [unread, setUnread] = useState(unreadMessages);
   const [unreadNotifs, setUnreadNotifs] = useState(unreadNotifications);
   const [menuOpen, setMenuOpen] = useState(false);
+  const drawer = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+
+  // A closed drawer must not be reachable by keyboard or screen reader. This
+  // runs before the focus trap so the drawer is no longer inert when the
+  // trap moves focus into it.
+  useEffect(() => {
+    drawer.current?.toggleAttribute("inert", !menuOpen);
+  }, [menuOpen]);
+  useFocusTrap(drawer, menuOpen, [toggle]);
 
   useEffect(() => {
     const poll = async () => {
@@ -58,6 +70,22 @@ export function NavShell({
     setMenuOpen(false);
   }, [pathname]);
 
+  // While the drawer is open: Escape closes it, and the page behind it
+  // stops scrolling.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <>
@@ -69,22 +97,18 @@ export function NavShell({
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`flex items-center gap-2 text-sm transition ${
-                active ? "text-ink" : "text-grey hover:text-ink"
+              className={`tap group relative flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-out ${
+                active ? "bg-foil/10 text-ink" : "text-taupe hover:bg-ink/[0.04] hover:text-ink"
               }`}
             >
-              {active && <span className="h-1.5 w-1.5 rounded-full bg-orange" />}
-              {item.label}
-              {item.href === "/messages" && unread > 0 && (
-                <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
-                  {unread}
-                </span>
-              )}
-              {item.href === "/notifications" && unreadNotifs > 0 && (
-                <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
-                  {unreadNotifs}
-                </span>
-              )}
+              <span
+                className={`absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-foil transition-all duration-300 ease-out ${
+                  active ? "opacity-100" : "opacity-0 group-hover:opacity-30"
+                }`}
+              />
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/messages" && <UnreadBadge count={unread} />}
+              {item.href === "/notifications" && <UnreadBadge count={unreadNotifs} />}
             </Link>
           );
         })}
@@ -95,69 +119,97 @@ export function NavShell({
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-grey/15 bg-paper px-6 py-4 md:hidden">
-        <span className="font-display text-lg italic text-ink">
-          PRE<span className="text-orange">QUATE</span>
-        </span>
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-taupe/12 bg-bone/90 px-6 py-4 backdrop-blur-md transition-shadow duration-300 md:hidden">
+        <Link href="/" className="flex min-h-[44px] items-center gap-2.5">
+          <span className="text-ink">
+            <LogoMark className="h-4 w-4" />
+          </span>
+          <span className="h-3.5 w-px bg-taupe/30" />
+          <span className="font-display text-base text-ink">The Table</span>
+        </Link>
         <button
+          ref={toggle}
           type="button"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
-          className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink"
+          className="tap relative -mr-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-ink transition-colors duration-300 hover:bg-ink/5"
         >
           {(unread > 0 || unreadNotifs > 0) && !menuOpen && (
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-deep-orange" />
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-scale-in rounded-full bg-clay" />
           )}
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            {menuOpen ? (
-              <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            ) : (
-              <path d="M2.5 5h15M2.5 10h15M2.5 15h15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            )}
-          </svg>
+          <span className="relative block h-3.5 w-5" aria-hidden="true">
+            <span
+              className={`absolute left-0 block h-[1.6px] w-5 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
+              }`}
+            />
+            <span
+              className={`absolute left-0 top-1/2 block h-[1.6px] w-5 -translate-y-1/2 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "scale-x-0 opacity-0" : "opacity-100"
+              }`}
+            />
+            <span
+              className={`absolute left-0 block h-[1.6px] w-5 rounded-full bg-current transition-all duration-[250ms] ease-out ${
+                menuOpen ? "bottom-1/2 translate-y-1/2 -rotate-45" : "bottom-0"
+              }`}
+            />
+          </span>
         </button>
       </div>
 
       {/* Mobile drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 top-[57px] z-30 flex flex-col justify-between overflow-y-auto bg-paper px-6 py-8 md:hidden">
-          <nav className="flex flex-col gap-5 text-base">
+      <div
+        className={`fixed inset-0 z-30 md:hidden ${menuOpen ? "" : "pointer-events-none"}`}
+        aria-hidden={!menuOpen}
+      >
+        <div
+          className={`absolute inset-0 bg-ink/20 backdrop-blur-sm transition-opacity duration-300 ease-out ${
+            menuOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMenuOpen(false)}
+        />
+        <div
+          ref={drawer}
+          className={`absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col justify-between overflow-y-auto bg-bone px-6 pb-8 pt-[73px] shadow-lg transition-transform duration-[300ms] ease-out ${
+            menuOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <nav className="flex flex-col gap-1 pt-4 text-base">
             <NavLinks onNavigate={() => setMenuOpen(false)} />
           </nav>
-          <div className="mt-10">
-            <p className="mb-2 text-xs text-grey">{memberName}</p>
+          <div className="mt-10 border-t border-taupe/12 pt-5">
+            <p className="mb-2 text-xs text-taupe">{memberName}</p>
             <form action={signOut}>
-              <button
-                type="submit"
-                className="rounded-md border border-grey/30 px-3 py-1.5 text-xs font-medium text-ink transition hover:border-grey/60"
-              >
+              <button type="submit" className="btn-secondary w-full text-xs">
                 Sign out
               </button>
             </form>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Desktop sidebar — unchanged */}
-      <aside className="hidden flex-shrink-0 border-grey/15 bg-paper px-6 pb-6 pt-24 md:fixed md:inset-y-0 md:left-0 md:block md:w-56 md:overflow-y-auto md:border-r">
-        <nav className="flex flex-col gap-2">
+      {/* Desktop sidebar */}
+      <aside className="hidden flex-shrink-0 border-taupe/12 bg-bone px-4 pb-6 pt-24 md:fixed md:inset-y-0 md:left-0 md:block md:w-60 md:overflow-y-auto md:border-r">
+        <nav className="flex flex-col gap-1">
           <NavLinks />
         </nav>
 
-        <div className="mt-10">
-          <p className="mb-2 text-xs text-grey">{memberName}</p>
+        <div className="mt-10 border-t border-taupe/12 px-3 pt-5">
+          <p className="mb-2 text-xs text-taupe">{memberName}</p>
           <form action={signOut}>
-            <button
-              type="submit"
-              className="rounded-md border border-grey/30 px-3 py-1.5 text-xs font-medium text-ink transition hover:border-grey/60"
-            >
+            <button type="submit" className="btn-ghost -ml-3 border border-taupe/20 px-3 py-1.5">
               Sign out
             </button>
           </form>
         </div>
       </aside>
 
-      <main className="flex-1 px-6 py-10 md:ml-56 md:px-12 md:py-24">{children}</main>
+      <main className="flex-1 px-6 py-10 md:ml-60 md:px-12 md:py-24">
+        <div key={pathname} className="animate-fade-up">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

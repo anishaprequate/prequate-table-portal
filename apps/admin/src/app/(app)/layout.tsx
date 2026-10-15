@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentAdmin, canView, canWrite } from "@/lib/session";
+import { navFor, ROLE_LABELS } from "@/lib/access";
 import { NavShell } from "@/components/nav-shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -21,9 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <NavShell
+      items={navFor(admin.role).map(({ href, label }) => ({ href, label }))}
       adminName={admin.name}
-      isFullAdmin={canView(admin.role)}
-      isOwner={admin.role === "ADMIN_OWNER"}
+      roleLabel={ROLE_LABELS[admin.role] ?? admin.role}
+      canChangePassword={admin.role !== "ADMIN_ASSOCIATE"}
       readOnly={!canWrite(admin.role)}
       unreadMessages={unreadMessages}
       unreadNotifications={unreadNotifications}
