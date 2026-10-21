@@ -11,6 +11,8 @@ packages/db/prisma/dev.db-journal
 packages/db/prisma/dev.db.bak-*
 .env
 .env.local
+.env.*
+!.env.example
 data/uploads/*
 data/local-db/
 data/local-db.pid

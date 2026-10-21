@@ -15,6 +15,8 @@ const BACKUPS = process.env.TABLE_BACKUP_DIR || path.join(os.homedir(), "prequat
 const arg = process.argv[2];
 const reset = process.argv.includes("--reset");
 const remoteOk = process.argv.includes("--allow-remote");
+// --skip=Session,OtpCode leaves those tables empty (sign-in sessions and codes are not worth carrying over).
+const skip = new Set((process.argv.find((a) => a.startsWith("--skip=")) || "").slice(7).split(",").filter(Boolean));
 
 (async () => {
   if (!arg) { console.log("Usage: restore-backup.cjs <backup folder name | latest> [--reset] [--allow-remote]"); process.exit(1); }
@@ -27,6 +29,7 @@ const remoteOk = process.argv.includes("--allow-remote");
   console.log(`restoring backup ${name} into ${local ? "the local database" : host}`);
 
   const data = JSON.parse(fs.readFileSync(file, "utf8"));
+  for (const n of skip) data[n] = [];
   const p = new PrismaClient();
   const models = Prisma.dmmf.datamodel.models;
   const byName = Object.fromEntries(models.map((m) => [m.name, m]));
