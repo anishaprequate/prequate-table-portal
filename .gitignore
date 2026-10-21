@@ -7,8 +7,15 @@ dist
 .DS_Store
 packages/db/prisma/dev.db
 packages/db/prisma/dev.db-journal
+# Safety copies taken before each schema change. They hold real data.
+packages/db/prisma/dev.db.bak-*
 .env
 .env.local
+.env.*
+!.env.example
 data/uploads/*
+data/local-db/
+data/local-db.pid
+data/local-db.log
 !data/uploads/.gitignore
 .claude/settings.local.json

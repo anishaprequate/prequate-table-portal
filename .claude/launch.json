@@ -5,7 +5,8 @@
       "name": "admin",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:admin"],
-      "port": 3001
+      "port": 3001,
+      "autoPort": true
     },
     {
       "name": "member",

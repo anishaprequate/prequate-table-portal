@@ -10,10 +10,12 @@ export function notificationLink(notification: {
   switch (notification.relatedEntityType) {
     case "member":
       return id ? `/members/${id}` : "/members";
+    case "booking":
+      return id ? `/bookings/${id}` : "/bookings";
+    case "advisor_request":
+      return "/advisors";
     case "event":
       return id ? `/events/${id}` : "/events";
-    case "concierge":
-      return "/concierge";
     default:
       return "/reports";
   }

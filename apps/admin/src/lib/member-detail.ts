@@ -11,10 +11,9 @@ export async function getMemberOrNull(id: string) {
 }
 
 export async function getMemberActivity(memberId: string) {
-  const [hoursUsed, conciergeUsed, bookingStats] = await Promise.all([
+  const [hoursUsed, bookingStats] = await Promise.all([
     prisma.booking.count({ where: { memberId, status: "COMPLETED" } }),
-    prisma.conciergeRequest.count({ where: { memberId } }),
     getMemberBookingStats(memberId),
   ]);
-  return { hoursUsed, conciergeUsed, bookingStats };
+  return { hoursUsed, bookingStats };
 }

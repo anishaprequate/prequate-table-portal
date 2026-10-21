@@ -19,11 +19,11 @@ export function PageHero({
         {accent && (
           <>
             {" "}
-            <span className="text-deep-orange">{accent}</span>
+            <span className="text-gold">{accent}</span>
           </>
         )}
       </h1>
-      {subtitle && <p className="mt-5 max-w-lg text-base leading-relaxed text-grey">{subtitle}</p>}
+      {subtitle && <p className="mt-5 max-w-lg text-base leading-relaxed text-taupe">{subtitle}</p>}
     </div>
   );
 }

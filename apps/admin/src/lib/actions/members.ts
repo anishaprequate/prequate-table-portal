@@ -6,7 +6,6 @@ import { prisma } from "@prequate/db";
 import {
   logTimelineEntry,
   summarizeLifecycleChange,
-  summarizePointsChange,
   summarizeProfileChanges,
   summarizeToggleChange,
   googleCalendar,
@@ -15,9 +14,7 @@ import {
 } from "@prequate/core";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 
-// "points" is deliberately excluded here — it gets its own summarizer
-// (summarizePointsChange) so the log always states the delta explicitly.
-// "chipUid" is excluded too — it's managed by the dedicated Provision/
+// "chipUid" is excluded here too — it's managed by the dedicated Provision/
 // Deactivate card actions below, which log their own specific audit entry.
 const PROFILE_DIFF_FIELDS = [
   "name",
@@ -30,6 +27,9 @@ const PROFILE_DIFF_FIELDS = [
   "linkedinUrl",
   "sector",
   "archetype",
+  "company",
+  "city",
+  "foundingCohort",
 ];
 
 function formatSeatNumber(n: number): string {
@@ -213,11 +213,23 @@ export async function bulkImportMembersCsv(formData: FormData) {
 
   if (rows.length === 0) redirect("/members/new?error=empty-csv");
 
-  const result = await prisma.user.createMany({ data: rows, skipDuplicates: true });
-  const duplicates = rows.length - result.count;
+  // SQLite's Prisma connector doesn't support createMany's `skipDuplicates`
+  // — insert one row at a time instead, counting anything that collides
+  // on a unique field (email, phone, seatNumber) as skipped rather than
+  // failing the whole import.
+  let added = 0;
+  let duplicates = 0;
+  for (const row of rows) {
+    try {
+      await prisma.user.create({ data: row });
+      added++;
+    } catch {
+      duplicates++;
+    }
+  }
 
   revalidatePath("/members");
-  redirect(`/members?added=${result.count}${duplicates > 0 || skipped > 0 ? `&skipped=${duplicates + skipped}` : ""}`);
+  redirect(`/members?added=${added}${duplicates > 0 || skipped > 0 ? `&skipped=${duplicates + skipped}` : ""}`);
 }
 
 export async function adminUpdateMember(formData: FormData) {
@@ -238,10 +250,13 @@ export async function adminUpdateMember(formData: FormData) {
   const longBio = String(formData.get("longBio") ?? "").trim();
   const linkedinUrl = String(formData.get("linkedinUrl") ?? "").trim();
   const directoryOptOut = formData.get("showInDirectory") !== "on";
-  const pointsRaw = Number(formData.get("points"));
-  const points = Number.isFinite(pointsRaw) ? Math.max(0, Math.trunc(pointsRaw)) : 0;
   const sector = String(formData.get("sector") ?? "").trim();
   const archetype = String(formData.get("archetype") ?? "").trim();
+  const company = String(formData.get("company") ?? "").trim();
+  const city = String(formData.get("city") ?? "").trim();
+  const seatingDateRaw = String(formData.get("seatingDate") ?? "").trim();
+  const seatingDate = seatingDateRaw ? new Date(seatingDateRaw) : null;
+  const foundingCohort = formData.get("foundingCohort") === "on";
   const lifecycleStatus = parseLifecycleStatus(formData.get("lifecycleStatus"));
 
   const after = {
@@ -253,14 +268,16 @@ export async function adminUpdateMember(formData: FormData) {
     bio: bio || null,
     longBio: longBio || null,
     linkedinUrl: linkedinUrl || null,
-    points,
     sector: sector || null,
     archetype: archetype || null,
+    company: company || null,
+    city: city || null,
+    foundingCohort,
   };
 
   await prisma.user.update({
     where: { id },
-    data: { ...after, directoryOptOut, lifecycleStatus },
+    data: { ...after, directoryOptOut, lifecycleStatus, seatingDate },
   });
 
   if (after.email !== before.email) {
@@ -276,10 +293,9 @@ export async function adminUpdateMember(formData: FormData) {
     lifecycleStatus,
   );
   const directoryNote = summarizeToggleChange("Directory visibility", !before.directoryOptOut, !directoryOptOut);
-  const pointsNote = summarizePointsChange(before.points, points);
   const profileNote = summarizeProfileChanges(before, after, PROFILE_DIFF_FIELDS);
 
-  const notes = [statusNote, directoryNote, pointsNote, profileNote].filter((n): n is string => Boolean(n));
+  const notes = [statusNote, directoryNote, profileNote].filter((n): n is string => Boolean(n));
   if (notes.length > 0) {
     await logTimelineEntry({
       memberId: id,

@@ -6,11 +6,14 @@
   "types": "src/index.ts",
   "dependencies": {
     "@prequate/db": "*",
+    "@supabase/supabase-js": "^2.118.0",
     "nodemailer": "^10.0.1",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",
+    "@types/web-push": "^3.6.4",
     "typescript": "^5.5.0"
   }
 }

@@ -1,20 +1,12 @@
+import { shortSlot, shortDay } from "./stable-date";
+
+// Written the same on the server and in every browser: see stable-date.ts.
 export function formatSlot(date: Date): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return shortSlot(date);
 }
 
 export function formatDateOnly(date: Date): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return `${shortDay(date)} ${date.getFullYear()}`;
 }
 
 // Drops the storage-format leading zeros (seats are stored zero-padded to

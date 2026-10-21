@@ -23,10 +23,12 @@ export function bookingConfirmedEmail(params: {
 export function bookingReminderEmail(params: {
   partnerName: string;
   whenLabel: string;
+  // In person: the place. Online: the Meet link.
+  where?: string | null;
 }): { subject: string; text: string } {
   return {
     subject: "Your Hour session is tomorrow",
-    text: `A reminder that your Hour with ${params.partnerName} is scheduled for ${params.whenLabel}.`,
+    text: `A reminder that your Hour with ${params.partnerName} is scheduled for ${params.whenLabel}.${params.where ? `\n\n${params.where}` : ""}`,
   };
 }
 

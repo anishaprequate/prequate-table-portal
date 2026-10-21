@@ -6,6 +6,7 @@ import { EventHeader } from "@/components/events/event-header";
 import { EventDetailNav } from "@/components/events/event-detail-nav";
 import { AttendeeRow, AttendeeRsvp } from "@/components/events/attendee-row";
 import { BackLink } from "@/components/back-link";
+import { InviteesCard } from "@/components/events/invitees-card";
 
 export default async function EventRegistrationPage({
   params,
@@ -51,7 +52,7 @@ export default async function EventRegistrationPage({
       </div>
 
       {pending.length > 0 && (
-        <div className="mb-8 rounded-md border border-deep-orange/30 bg-orange/5 p-4">
+        <div id="pending" className="mb-8 rounded-md border border-deep-orange/30 bg-orange/5 p-4">
           <p className="mb-2 text-xs uppercase tracking-wide text-deep-orange">Pending approval ({pending.length})</p>
           <ul className="flex flex-col gap-2 text-sm">
             {pending.map((a) => (
@@ -107,7 +108,7 @@ export default async function EventRegistrationPage({
       </div>
 
       {waitlist.length > 0 && (
-        <div className="mb-8 rounded-md border border-grey/15 p-4">
+        <div id="waitlist" className="mb-8 rounded-md border border-grey/15 p-4">
           <p className="mb-2 text-xs uppercase tracking-wide text-grey">Waitlist ({waitlist.length})</p>
           <ul className="flex flex-col gap-2 text-sm">
             {waitlist.map((a) => (
@@ -124,16 +125,8 @@ export default async function EventRegistrationPage({
         </div>
       )}
 
-      {event.inviteOnly && (
-        <div className="mb-8 rounded-md border border-grey/15 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-grey">Invited ({invitedOnly.length})</p>
-          {invitedOnly.length === 0 && <p className="text-sm text-grey">No one invited yet.</p>}
-          <ul className="flex flex-col gap-1 text-sm">
-            {invitedOnly.map((a) => (
-              <li key={a.id}>{a.member.name}</li>
-            ))}
-          </ul>
-        </div>
+      {(event.inviteOnly || event.attendances.some((a) => a.invited)) && (
+        <InviteesCard eventId={event.id} attendances={event.attendances} writable={writable} />
       )}
 
       <BackLink href={`/events/${event.id}`} />

@@ -31,6 +31,7 @@ export default async function EventGuestsPage({
       <EventDetailNav eventId={event.id} active="guests" showEdit={writable} />
 
       <EventStatsBar
+        eventId={event.id}
         capacity={event.capacity}
         takenSpots={takenSpots}
         joinedCount={totalJoined}

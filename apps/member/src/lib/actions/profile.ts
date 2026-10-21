@@ -2,10 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { prisma } from "@prequate/db";
-import { UPLOADS_DIR, googleCalendar } from "@prequate/core";
+import { saveUpload, googleCalendar } from "@prequate/core";
 import { getCurrentUser } from "@/lib/session";
 
 export async function updateProfile(formData: FormData) {
@@ -21,19 +19,23 @@ export async function updateProfile(formData: FormData) {
   let photoUrl: string | undefined;
   const photo = formData.get("photo");
   if (photo instanceof File && photo.size > 0 && photo.type.startsWith("image/")) {
-    await mkdir(UPLOADS_DIR, { recursive: true });
     const safeName = photo.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-    const storedName = `${user.id}-${Date.now()}-${safeName}`;
-    const buffer = Buffer.from(await photo.arrayBuffer());
-    await writeFile(path.join(UPLOADS_DIR, storedName), buffer);
+    const storedName = await saveUpload("photo", `${user.id}-${Date.now()}-${safeName}`, Buffer.from(await photo.arrayBuffer()), photo.type);
     photoUrl = `/api/briefs/${storedName}`;
   }
 
   const newEmail = email || null;
 
+  // Remember which synced fields the member changed themselves, so the
+  // Notion sync never overwrites them.
+  const edited = new Set<string>(user.profileEditedFields ? JSON.parse(user.profileEditedFields) : []);
+  if (name && name !== user.name) edited.add("name");
+  if (newEmail !== user.email) edited.add("email");
+
   await prisma.user.update({
     where: { id: user.id },
     data: {
+      profileEditedFields: edited.size ? JSON.stringify([...edited]) : null,
       name: name || user.name,
       seatType: seatType || null,
       email: newEmail,
@@ -64,6 +66,6 @@ export async function updateProfile(formData: FormData) {
   );
 
   revalidatePath("/settings");
-  revalidatePath("/directory");
+  revalidatePath("/members");
   redirect("/settings?saved=1");
 }

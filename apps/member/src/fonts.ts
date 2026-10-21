@@ -1,51 +1,21 @@
-import localFont from "next/font/local";
+import { Cormorant_Garamond, Jost } from "next/font/google";
 
-// Headlines and body copy. Product Sans Bold for headlines, Light for
-// body, Regular for captions and table text, Medium for small
-// letter-spaced eyebrow labels — weights selected per use with Tailwind's
-// font-weight utilities.
-export const productSans = localFont({
-  src: [
-    {
-      path: "../../../packages/core/src/fonts/ProductSans-Light.ttf",
-      weight: "300",
-      style: "normal",
-    },
-    {
-      path: "../../../packages/core/src/fonts/ProductSans-Regular.ttf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../../../packages/core/src/fonts/ProductSans-Medium.ttf",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "../../../packages/core/src/fonts/ProductSans-Bold.ttf",
-      weight: "700",
-      style: "normal",
-    },
-  ],
-  variable: "--font-product-sans",
+// Names, numbers, the wordmark — set generously, never bold. Per The
+// Table's identity spec (table-design-identity-v1.pdf): Cormorant Garamond,
+// Light weight, with Italic reserved for display moments and quote lines.
+export const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-cormorant",
   display: "swap",
 });
 
-// Reserved for display moments — page hero titles and the italic accent
-// word within them — never body text or UI labels.
-export const awesomeSerif = localFont({
-  src: [
-    {
-      path: "../../../packages/core/src/fonts/Awesome Serif VAR-VF.ttf",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "../../../packages/core/src/fonts/Awesome Serif Italic VAR-VF.ttf",
-      weight: "700",
-      style: "italic",
-    },
-  ],
-  variable: "--font-awesome-serif",
+// Labels and small caps, tracked wide at 0.3em. Also doubles as the app's
+// body/UI sans — Light for body copy, Regular for captions and table text.
+export const jost = Jost({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-jost",
   display: "swap",
 });

@@ -23,7 +23,7 @@ function ToolbarButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`rounded px-2.5 py-1.5 text-sm transition ${
+      className={`min-w-[44px] rounded px-2.5 py-1.5 text-sm transition md:min-w-0 ${
         active ? "bg-ink text-paper" : "text-ink hover:bg-grey/10"
       }`}
     >

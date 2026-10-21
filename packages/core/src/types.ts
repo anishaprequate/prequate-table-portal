@@ -64,21 +64,6 @@ export const EVENT_TIER_LABELS: Record<EventTier, string> = {
   ANNUAL: "Annual Gathering",
 };
 
-export type ConciergeStatus =
-  | "SUBMITTED"
-  | "AWAITING_APPROVAL"
-  | "ACCEPTED"
-  | "DECLINED"
-  | "FULFILLED";
-
-export const CONCIERGE_STATUS_LABELS: Record<ConciergeStatus, string> = {
-  SUBMITTED: "Sent",
-  AWAITING_APPROVAL: "Awaiting your approval",
-  ACCEPTED: "Accepted",
-  DECLINED: "Declined",
-  FULFILLED: "Fulfilled",
-};
-
 export type IntroductionStatus = "SENT" | "ACCEPTED" | "DECLINED" | "FULFILLED";
 
 export const INTRODUCTION_STATUS_LABELS: Record<IntroductionStatus, string> = {
@@ -108,10 +93,3 @@ export interface SessionUser {
   seatType: string | null;
 }
 
-export const CONCIERGE_GROUPS = [
-  "Lifestyle Touchpoints",
-  "Access Touchpoints",
-  "Experience Touchpoints",
-] as const;
-
-export type ConciergeGroup = (typeof CONCIERGE_GROUPS)[number];

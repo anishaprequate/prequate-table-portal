@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { longDate } from "@/lib/stable-date";
 
 type Row = { id: string; name: string; lastTouch: Date | null; daysSince: number | null };
 type SortKey = "name" | "lastTouch" | "daysSince";
@@ -56,7 +57,7 @@ export function SortableInactiveTable({ rows }: { rows: Row[] }) {
             </td>
             <td className="py-2 pr-4 text-grey">
               {m.lastTouch
-                ? new Date(m.lastTouch).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                ? longDate(new Date(m.lastTouch))
                 : "Never"}
             </td>
             <td className="py-2 text-grey">{m.daysSince ?? "—"}</td>

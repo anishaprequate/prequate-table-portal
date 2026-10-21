@@ -1,7 +1,7 @@
 import { prisma } from "@prequate/db";
 
 // Notification.type: "event_cancelled" | "member_inactive"
-// | "concierge_sla_breach" | "intro_request" | "event_survey" — deliberately
+// | "intro_request" | "event_survey" — deliberately
 // no "new_message" here. A new message already has its own unread signal
 // (Message.read, surfaced on the Messages nav item); routing it through
 // Notification as well used to make the member-side Notifications page a

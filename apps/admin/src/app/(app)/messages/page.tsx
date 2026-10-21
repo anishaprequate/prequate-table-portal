@@ -53,7 +53,7 @@ export default async function MessagesPage({
       <div className="mb-8 flex gap-6 border-b border-grey/15">
         <Link
           href="/messages?tab=conversations"
-          className={`pb-3 text-sm font-medium transition ${
+          className={`flex min-h-[44px] items-center px-2.5 text-sm font-medium transition ${
             tab === "conversations" ? "border-b-2 border-orange text-ink" : "text-grey hover:text-ink"
           }`}
         >
@@ -61,7 +61,7 @@ export default async function MessagesPage({
         </Link>
         <Link
           href="/messages?tab=dms"
-          className={`pb-3 text-sm font-medium transition ${
+          className={`flex min-h-[44px] items-center px-2.5 text-sm font-medium transition ${
             tab === "dms" ? "border-b-2 border-orange text-ink" : "text-grey hover:text-ink"
           }`}
         >

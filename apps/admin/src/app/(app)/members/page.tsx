@@ -24,7 +24,7 @@ export default async function MembersPage({
     prisma.user.findMany({
       where: {
         role: "MEMBER",
-        ...(q && { name: { contains: q } }),
+        ...(q && { name: { contains: q, mode: "insensitive" } }),
         ...(sector && { sector }),
         ...(eventId && { eventAttendances: { some: { eventId, joined: true } } }),
       },
@@ -82,7 +82,6 @@ export default async function MembersPage({
               <th className="pb-3 pr-4 font-normal">Name</th>
               <th className="pb-3 pr-4 font-normal">Seat</th>
               <th className="pb-3 pr-4 font-normal">Status</th>
-              <th className="pb-3 pr-4 font-normal">Points</th>
               <th className="pb-3 font-normal">Directory</th>
             </tr>
           </thead>
@@ -98,7 +97,6 @@ export default async function MembersPage({
                 <td className="py-3 pr-4">
                   <LifecycleBadge status={member.lifecycleStatus as MemberLifecycleStatus} />
                 </td>
-                <td className="py-3 pr-4 text-grey">{member.points}</td>
                 <td className="py-3 text-grey">
                   {member.directoryOptOut ? "Hidden" : "Visible"}
                 </td>

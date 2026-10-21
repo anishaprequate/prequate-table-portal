@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { shortSlot } from "@/lib/stable-date";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -75,13 +76,7 @@ export function MessageThread({
             }`}
           >
             {message.senderRole !== "MEMBER" && <ReadTicks read={message.read} />}
-            {new Intl.DateTimeFormat("en-IN", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "numeric",
-              minute: "2-digit",
-            }).format(new Date(message.createdAt))}
+            {shortSlot(new Date(message.createdAt))}
           </p>
         </div>
       ))}

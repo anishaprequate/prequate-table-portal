@@ -10,40 +10,50 @@ import {
   removeEventInvite,
   addTicketType,
   deleteTicketType,
-  generateInviteLink,
+  sendEventInvitations,
 } from "@/lib/actions/events";
 import { EventHeader } from "@/components/events/event-header";
 import { EventDetailNav } from "@/components/events/event-detail-nav";
 import { NumberField } from "@/components/number-field";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { InviteOnlySection } from "@/components/invite-only-section";
+import { EventHomeFields } from "@/components/event-home-fields";
+import { EventAccessSection } from "@/components/event-access-section";
+import { invitationStatus } from "@/lib/invitation-status";
 import { EventTierFields } from "@/components/event-tier-fields";
+import { EventTimeFields } from "@/components/event-time-fields";
 import { BackLink } from "@/components/back-link";
 
 const EDIT_FORM_ID = "event-edit-form";
+
+// The value a datetime-local field expects, in the server's own clock: the
+// same one the save reads it back in.
+const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalInput = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 export default async function EventEditPage({
   params,
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { sector?: string; archetype?: string; saved?: string };
+  searchParams: { sector?: string; archetype?: string; saved?: string; error?: string };
 }) {
   const admin = await getCurrentAdmin();
   if (!admin || !canView(admin.role)) redirect("/bookings");
   const writable = canWrite(admin.role);
   if (!writable) redirect(`/events/${params.id}`);
 
-  const [detail, members] = await Promise.all([
+  const [detail, members, partners] = await Promise.all([
     getEventDetail(params.id),
     prisma.user.findMany({
       where: { role: "MEMBER" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, sector: true, archetype: true },
     }),
+    prisma.user.findMany({ where: { OR: [{ role: "PARTNER" }, { hostsHours: true }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   if (!detail) notFound();
-  const { event, invitedOnly, isPast } = detail;
+  const { event, isPast } = detail;
 
   const attendedOrInvited = new Set(event.attendances.map((a) => a.memberId));
   const sectors = Array.from(new Set(members.map((m) => m.sector).filter((s): s is string => !!s))).sort();
@@ -55,53 +65,59 @@ export default async function EventEditPage({
     return true;
   });
 
-  const inviteUrl = event.inviteToken
-    ? `${process.env.MEMBER_APP_URL ?? "http://localhost:3000"}/events/invite/${event.inviteToken}`
-    : null;
+  const invitees = event.attendances.filter((a) => a.invited);
+  const unsent = invitees.filter((a) => !a.invitationSentAt).length;
+  const STATUS_TONE = { good: "text-ink", wait: "text-deep-orange", muted: "text-grey" } as const;
 
   const inviteManagement = (
     <div className="mb-8">
-      <p className="mb-2 text-xs uppercase tracking-wide text-grey">Invited ({invitedOnly.length})</p>
-      {invitedOnly.length === 0 && <p className="text-sm text-grey">No one invited yet.</p>}
-      <ul className="flex flex-col gap-1 text-sm">
-        {invitedOnly.map((a) => (
-          <li key={a.id} className="flex items-center justify-between gap-3">
-            {a.member.name}
-            <form action={removeEventInvite}>
-              <input type="hidden" name="eventId" value={event.id} />
-              <input type="hidden" name="memberId" value={a.memberId} />
-              <button type="submit" className="text-xs text-grey underline hover:text-ink">
-                Remove
-              </button>
-            </form>
-          </li>
-        ))}
+      <p className="mb-2 text-xs uppercase tracking-wide text-grey">Invitations ({invitees.length})</p>
+      {invitees.length === 0 && <p className="text-sm text-grey">No one invited yet. Pick members below.</p>}
+      <ul className="flex flex-col gap-1.5 text-sm">
+        {invitees.map((a) => {
+          const status = invitationStatus(a);
+          return (
+            <li key={a.id} className="flex items-center justify-between gap-3">
+              <span>
+                {a.member.name}{" "}
+                <span className={`text-xs ${STATUS_TONE[status.tone]}`}>{status.label}</span>
+              </span>
+              {!a.joined && !a.waitlisted && (
+                <form action={removeEventInvite}>
+                  <input type="hidden" name="eventId" value={event.id} />
+                  <input type="hidden" name="memberId" value={a.memberId} />
+                  <button type="submit" className="text-xs text-grey underline hover:text-ink">
+                    Remove
+                  </button>
+                </form>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
-      <div className="mt-4 flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-wide text-grey">Shareable invite link</p>
-        {inviteUrl ? (
-          <input
-            type="text"
-            readOnly
-            defaultValue={inviteUrl}
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-xs text-ink"
-          />
-        ) : (
-          <form action={generateInviteLink}>
-            <input type="hidden" name="eventId" value={event.id} />
-            <button
-              type="submit"
-              className="w-fit rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
-            >
-              Generate invite link
-            </button>
-          </form>
-        )}
-      </div>
+      {unsent > 0 && !event.publishedAt && (
+        <p className="mt-4 text-xs text-grey">
+          {unsent} invitation{unsent === 1 ? "" : "s"} will go out when you publish this event.
+        </p>
+      )}
+      {unsent > 0 && event.publishedAt && (
+        <form action={sendEventInvitations} className="mt-4 flex flex-col gap-2">
+          <input type="hidden" name="eventId" value={event.id} />
+          <p className="text-xs text-grey">
+            {unsent} invitation{unsent === 1 ? "" : "s"} not sent. Until you send, those members cannot see this event.
+          </p>
+          <button
+            type="submit"
+            className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            Send {unsent} invitation{unsent === 1 ? "" : "s"}
+          </button>
+        </form>
+      )}
 
       <div className="mt-4 flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-wide text-grey">Invite members</p>
+        <p className="text-xs uppercase tracking-wide text-grey">Add members</p>
         <form className="flex gap-3">
           <select
             name="sector"
@@ -154,7 +170,7 @@ export default async function EventEditPage({
               type="submit"
               className="w-fit rounded-md border border-grey/30 px-4 py-2 text-sm font-medium text-ink transition hover:border-grey/60"
             >
-              Invite selected
+              Add to invitations
             </button>
           </form>
         ) : (
@@ -167,6 +183,7 @@ export default async function EventEditPage({
   return (
     <div className="max-w-md">
       {searchParams.saved && <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>}
+      {searchParams.error === "times" && <p className="mb-6 text-sm text-deep-orange">The end time has to be after the start time.</p>}
       <EventHeader detail={detail} writable={writable} />
       <EventDetailNav eventId={event.id} active="edit" showEdit={writable} />
 
@@ -196,6 +213,13 @@ export default async function EventEditPage({
           {event.imageUrl ? "Replace cover image" : "Add a cover image"}
           <input type="file" name="image" accept="image/*" className="text-sm" />
         </label>
+
+        <EventTimeFields defaultStart={toLocalInput(event.startTime)} defaultEnd={toLocalInput(event.endTime)} />
+        {event.publishedAt && (
+          <p className="-mt-2 text-xs text-grey">
+            Changing the date or place tells everyone who is going or invited, and updates their calendar.
+          </p>
+        )}
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-xs uppercase tracking-wide text-grey">Location</span>
@@ -276,6 +300,17 @@ export default async function EventEditPage({
           />
         </label>
 
+        <EventHomeFields
+          partners={partners}
+          defaults={{
+            dinnerQuestion: event.dinnerQuestion,
+            hostPartnerId: event.hostPartnerId,
+            mapUrl: event.mapUrl,
+            dressCode: event.dressCode,
+            arrivalNote: event.arrivalNote,
+          }}
+        />
+
         <button
           type="submit"
           className="mt-1 w-fit rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-ink/90"
@@ -301,14 +336,14 @@ export default async function EventEditPage({
             </li>
           ))}
         </ul>
-        <form action={addTicketType} className="flex gap-2">
+        <form action={addTicketType} className="flex flex-wrap gap-2">
           <input type="hidden" name="eventId" value={event.id} />
           <input
             type="text"
             name="name"
             placeholder="e.g. VIP"
             required
-            className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
+            className="min-w-0 flex-1 rounded-md border border-grey/30 bg-paper px-3 py-2 text-sm text-ink"
           />
           <NumberField
             name="capacity"
@@ -324,9 +359,9 @@ export default async function EventEditPage({
         </form>
       </div>
 
-      <InviteOnlySection formId={EDIT_FORM_ID} defaultChecked={event.inviteOnly}>
+      <EventAccessSection formId={EDIT_FORM_ID} defaultClosed={event.inviteOnly}>
         {inviteManagement}
-      </InviteOnlySection>
+      </EventAccessSection>
 
       {isPast && (
         <form action={saveEventNote} className="mt-8 flex flex-col gap-3 rounded-md border border-grey/15 p-4">

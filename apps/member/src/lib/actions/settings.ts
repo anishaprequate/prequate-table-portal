@@ -39,6 +39,6 @@ export async function updateSettings(formData: FormData) {
   }
 
   revalidatePath("/settings");
-  revalidatePath("/directory");
+  revalidatePath("/members");
   redirect("/settings?saved=1");
 }

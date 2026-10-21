@@ -39,6 +39,11 @@ export async function GET(request: Request) {
     const { subject, text } = emailTemplates.bookingReminderEmail({
       partnerName: booking.partner.name,
       whenLabel: formatSlot(booking.startTime),
+      where: booking.location
+        ? booking.mode === "ONLINE"
+          ? `Join online: ${booking.location}`
+          : `Place: ${booking.location}`
+        : null,
     });
     await mailer.sendEmail({ to: booking.member.email, subject, text });
 

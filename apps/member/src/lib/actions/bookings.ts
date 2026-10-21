@@ -21,7 +21,7 @@ export async function createBooking(formData: FormData) {
     redirect(`/the-hour/book/slot?partnerId=${partnerId}&error=no-slot`);
   }
 
-  const partner = await prisma.user.findFirst({ where: { id: partnerId, role: "PARTNER" } });
+  const partner = await prisma.user.findFirst({ where: { id: partnerId, hostsHours: true } });
   if (!partner) redirect("/the-hour/book?error=partner-not-found");
 
   const monthConflict = await findBookingInMonth(user.id, startTime);
@@ -83,7 +83,14 @@ export async function cancelBooking(formData: FormData) {
 
   await prisma.booking.update({
     where: { id: bookingId },
-    data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: reason },
+    data: {
+      status: "CANCELLED",
+      // Withdrawing a request that was never confirmed is not a late cancellation.
+      cancelledAt: booking.status === "REQUESTED" ? null : new Date(),
+      cancellationReason: reason,
+      pendingStart: null,
+      pendingEnd: null,
+    },
   });
 
   revalidatePath("/the-hour");

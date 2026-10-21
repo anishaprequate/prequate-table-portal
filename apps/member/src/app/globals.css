@@ -2,12 +2,302 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The Table's colours. Light is the default; dark follows the device until the
+   member chooses (the toggle sets data-theme on <html>, see theme.tsx).
+   Values are space-separated RGB so Tailwind can add opacity. */
+:root {
+  color-scheme: light;
+  --c-paper: 251 247 240; /* the page: the original bone */
+  --c-bone: 254 252 248; /* cards and fields */
+  --c-ink: 20 18 15;
+  --c-taupe: 118 106 94;
+  --c-clay: 110 74 58;
+  --c-foil: 201 164 85;
+  --c-night: 29 23 19; /* a dark panel, in both themes */
+  --c-cream: 251 247 240; /* text on night and clay panels */
+  --c-claypanel: 110 74 58;
+  /* The foil gradient used for accent text: deep gold on the light page so it
+     can be read, brighter gold wherever the ground is dark. */
+  --gold-a: 125 91 20;
+  --gold-b: 184 146 47;
+  --gold-c: 125 91 20;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+}
+
+/* Corners are rounder on a phone, where a card is close to the edge of a
+   rounded screen and square-ish corners read as hard. */
+@media (max-width: 767px) {
+  :root {
+    --radius-md: 1rem;
+    --radius-lg: 1.5rem;
+    --radius-xl: 2rem;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-paper: 14 12 10;
+  --c-bone: 29 25 21;
+  --c-ink: 243 236 224;
+  --c-taupe: 172 160 148;
+  --c-clay: 214 168 144;
+  --c-foil: 212 174 99;
+  --c-night: 41 32 26;
+  --c-claypanel: 92 62 48;
+  --gold-a: 217 185 106;
+  --gold-b: 242 221 160;
+  --gold-c: 196 154 69;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --c-paper: 14 12 10;
+    --c-bone: 29 25 21;
+    --c-ink: 243 236 224;
+    --c-taupe: 172 160 148;
+    --c-clay: 214 168 144;
+    --c-foil: 212 174 99;
+    --c-night: 41 32 26;
+    --c-claypanel: 92 62 48;
+    --gold-a: 217 185 106;
+    --gold-b: 242 221 160;
+    --gold-c: 196 154 69;
+  }
+}
+
 html {
-  background: #ffffff;
+  -webkit-tap-highlight-color: transparent;
+  background: rgb(var(--c-paper));
+  scroll-behavior: smooth;
+  /* Safari makes text larger when a phone turns sideways; do not. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* A full screen on iPhone Safari. 100vh counts the area behind the address bar
+   and toolbar, so a page sized to it overflows; dvh is the visible height. The
+   first line is the fallback for older browsers. */
+.min-h-app {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 body {
-  color: #161616;
+  color: rgb(var(--c-ink));
+}
+
+::selection {
+  background: rgb(var(--c-foil) / 0.3);
+  color: rgb(var(--c-ink));
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-foil));
+  outline-offset: 2px;
+}
+
+/* The profile menu and its button take focus when they open. They must never
+   show a ring for it, on any browser. */
+[role="menu"]:focus,
+[role="menu"]:focus-visible,
+#mobile-bar button:focus,
+#mobile-bar button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--c-taupe) / 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-taupe) / 0.35);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--c-taupe) / 0.55);
+}
+
+@layer components {
+  /* Elevated card surface — the base unit for tiles, list rows, and panels. */
+  .card {
+    @apply rounded-lg border border-taupe/10 bg-bone shadow-sm transition-all duration-300 ease-out;
+  }
+
+  .card-interactive {
+    @apply card cursor-pointer hover:-translate-y-0.5 hover:border-foil/40 hover:shadow-md active:translate-y-0 active:shadow-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-medium text-bone shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-clay hover:shadow-md active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-taupe/25 bg-bone px-5 py-3 text-sm font-medium text-ink shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-foil hover:text-ink hover:shadow-md active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] rounded-md px-3 py-1.5 text-xs font-medium text-taupe transition-all duration-300 ease-out hover:bg-ink/5 hover:text-ink;
+  }
+
+  .input-field {
+    @apply min-h-[44px] w-full rounded-md border border-taupe/25 bg-bone px-4 py-2.5 text-sm text-ink shadow-sm transition-all duration-300 ease-out placeholder:text-taupe/60 focus:border-foil focus:shadow-glow;
+  }
+
+  /* A fine, barely-there grain — the Room's material texture. Applied via
+     a pseudo-element so it layers over any background without fighting
+     the element's own gradient/shadow. */
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* The member's own seat — raised, gold-rimmed, physically lit. */
+  .room-plate {
+    @apply relative overflow-hidden border-2 border-foil bg-bone shadow-lg;
+  }
+
+  /* Panels give a page its rhythm: a dark one, a clay one, a gold-washed one.
+     A panel redefines the colour variables for everything inside it, so text,
+     lines and cards in it keep working without any change of their own. */
+  .panel-night {
+    --gold-a: 217 185 106;
+    --gold-b: 242 221 160;
+    --gold-c: 196 154 69;
+    --c-ink: 251 247 240;
+    --c-taupe: 196 184 170;
+    --c-clay: 224 186 120;
+    --c-bone: 52 42 35;
+    @apply relative rounded-xl border border-foil/25 bg-night text-ink shadow-md;
+  }
+  .panel-night .room-seat-filled {
+    border-color: rgb(var(--c-foil) / 0.35);
+  }
+  .panel-clay {
+    --gold-a: 217 185 106;
+    --gold-b: 242 221 160;
+    --gold-c: 196 154 69;
+    --c-ink: 251 247 240;
+    --c-taupe: 228 211 197;
+    --c-clay: 236 204 148;
+    --c-bone: 134 96 77;
+    @apply relative rounded-xl border border-foil/30 text-ink shadow-md;
+    background: rgb(var(--c-claypanel));
+  }
+  .panel-foil {
+    @apply relative rounded-xl border border-foil/50 text-ink shadow-sm;
+    background: linear-gradient(160deg, rgb(var(--c-foil) / 0.26), rgb(var(--c-foil) / 0.1));
+  }
+
+  /* A satellite on the Room wheel — worked metal: soft gradient, a raised
+     edge, a real shadow. */
+  .room-seat-filled {
+    @apply relative overflow-hidden border border-taupe/20 shadow-md transition-all duration-300 ease-out;
+    background: linear-gradient(155deg, rgb(var(--c-bone) / 0.95), rgb(var(--c-taupe) / 0.22));
+  }
+}
+
+/* Press feedback for anything tappable: a small, quick squeeze so a tap
+   visibly registers (about 150ms, ease-out). */
+.tap {
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tap:active {
+  transform: scale(0.97);
+}
+
+/* Loading placeholder: a slow shimmer in the page's own palette. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--c-taupe) / 0.1) 0%,
+    rgb(var(--c-taupe) / 0.2) 50%,
+    rgb(var(--c-taupe) / 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.625rem;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes room-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes room-spin-reverse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Respect the device's reduced-motion setting everywhere: no perpetual
+   spin, no flips, no entrance slides. State changes still happen, just
+   without movement. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .prose-post h2 {
@@ -49,8 +339,8 @@ body {
 .prose-post blockquote {
   margin: 1.75rem 0;
   padding-left: 1.25rem;
-  border-left: 3px solid #ff9633;
-  color: #707070;
+  border-left: 3px solid rgb(var(--c-foil));
+  color: rgb(var(--c-taupe));
   font-style: italic;
 }
 
@@ -62,4 +352,86 @@ body {
 
 .prose-post strong {
   font-weight: 700;
+}
+
+/* iPhone Safari zooms the whole page when a field smaller than 16px takes focus,
+   and does not zoom back. Every text field is 16px on a phone. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  select {
+    min-height: 44px;
+  }
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    max-width: 100%;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1.5l5 5 5-5' fill='none' stroke='%23948779' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 0.75rem;
+    padding-right: 2.5rem !important;
+  }
+  label:has(> select) {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+}
+
+/* Phone type scale. The sizes below match what phone apps use for text: 17px
+   for reading, 15px for secondary lines, 13px for captions, and never under
+   12px. Each rule only applies on a phone; wider screens keep their sizes. */
+@media (max-width: 767px) {
+  body {
+    font-size: 1.0625rem;
+  }
+  .text-base {
+    font-size: 1.0625rem;
+    line-height: 1.6rem;
+  }
+  .text-sm {
+    font-size: 0.9375rem;
+    line-height: 1.4rem;
+  }
+  .text-xs {
+    font-size: 0.8125rem;
+    line-height: 1.2rem;
+  }
+  .text-\[11px\],
+  .text-\[10px\],
+  .text-\[9px\] {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+}
+
+/* Accent text in the foil gradient. */
+.text-gold {
+  background-image: linear-gradient(110deg, rgb(var(--gold-a)) 0%, rgb(var(--gold-b)) 50%, rgb(var(--gold-c)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* The seat plate flips like a card. Older iPhone Safari needs the prefixed
+   forms, or both faces show at once. */
+.\[backface-visibility\:hidden\] {
+  -webkit-backface-visibility: hidden;
+}
+.\[transform-style\:preserve-3d\] {
+  -webkit-transform-style: preserve-3d;
+}
+
+/* Gold accent text on a dark ground inside a light page. */
+.gold-on-dark {
+  --gold-a: 217 185 106;
+  --gold-b: 242 221 160;
+  --gold-c: 196 154 69;
 }

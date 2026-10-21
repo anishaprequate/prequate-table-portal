@@ -1,24 +1,16 @@
 import { prisma } from "@prequate/db";
-import { googleCalendar } from "@prequate/core";
+import { availability } from "@prequate/core";
 
-type CalendarSlot = { startTime: Date; endTime: Date };
+type CalendarSlot = availability.CalendarSlot;
 
-export async function getOpenSlots(
-  partnerId: string,
-  excludeBookingId?: string,
-): Promise<CalendarSlot[]> {
-  const allSlots = googleCalendar.getPartnerAvailability(partnerId);
-
-  const existing = await prisma.booking.findMany({
-    where: {
-      partnerId,
-      status: { not: "CANCELLED" },
-      ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
-    },
-    select: { startTime: true },
+// Open Hours for one partner. All the work (windows, busy time, bookings,
+// lead time) lives in @prequate/core, so the member calendar, Home and the
+// admin reschedule page can never disagree.
+export async function getOpenSlots(partnerId: string, excludeBookingId?: string): Promise<CalendarSlot[]> {
+  const partner = await prisma.user.findUnique({
+    where: { id: partnerId },
+    select: { id: true, email: true, tableHoursCalendarId: true },
   });
-
-  const taken = new Set(existing.map((b) => b.startTime.getTime()));
-
-  return allSlots.filter((slot) => !taken.has(slot.startTime.getTime()));
+  if (!partner) return [];
+  return availability.getOpenSlots(partner, { excludeBookingId });
 }

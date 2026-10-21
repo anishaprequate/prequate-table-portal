@@ -18,7 +18,7 @@ export function SlotPicker({ slots }: { slots: SlotOption[] }) {
     <div className="flex flex-col gap-6">
       {days.map((day) => (
         <div key={day}>
-          <p className="mb-2 text-xs text-grey">{day}</p>
+          <p className="mb-2 text-xs text-taupe">{day}</p>
           <div className="flex flex-wrap gap-2">
             {slots
               .filter((s) => s.day === day)
@@ -27,10 +27,10 @@ export function SlotPicker({ slots }: { slots: SlotOption[] }) {
                   type="button"
                   key={slot.startTime}
                   onClick={() => setSelected(slot.startTime)}
-                  className={`rounded-md border px-3 py-2 text-sm transition ${
+                  className={`tap min-h-[44px] rounded-md border px-3 py-2 text-sm shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${
                     selected === slot.startTime
-                      ? "border-orange bg-orange/10"
-                      : "border-grey/30 hover:border-grey/60"
+                      ? "border-foil bg-foil/10 shadow-md"
+                      : "border-taupe/25 hover:border-foil/50"
                   }`}
                 >
                   {slot.label}

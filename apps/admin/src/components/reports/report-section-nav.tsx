@@ -4,7 +4,6 @@ const SECTIONS = [
   { href: "/reports", label: "Overview" },
   { href: "/reports/hour", label: "The Hour" },
   { href: "/reports/events", label: "Events" },
-  { href: "/reports/concierge", label: "Concierge" },
   { href: "/reports/members", label: "Members" },
   { href: "/reports/directory-content", label: "Directory & Content" },
 ] as const;
@@ -14,12 +13,12 @@ const SECTIONS = [
 // Reports without a trip back to the hub.
 export function ReportSectionNav({ active }: { active: (typeof SECTIONS)[number]["href"] }) {
   return (
-    <div className="mb-8 flex flex-wrap gap-6 border-b border-grey/15 text-sm">
+    <div className="mb-8 flex flex-wrap gap-x-1 border-b border-grey/15 text-sm">
       {SECTIONS.map((s) => (
         <Link
           key={s.href}
           href={s.href}
-          className={`pb-3 font-medium transition ${
+          className={`flex min-h-[44px] items-center px-2.5 font-medium transition ${
             active === s.href ? "border-b-2 border-orange text-ink" : "text-grey hover:text-ink"
           }`}
         >
