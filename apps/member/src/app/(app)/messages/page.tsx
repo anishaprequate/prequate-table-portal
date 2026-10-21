@@ -4,11 +4,13 @@ import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
 import { UnreadBadge } from "@/components/unread-badge";
 import { PageHero } from "@/components/page-hero";
+import { getRmFirstName } from "@/lib/rm";
 
 export default async function MessagesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const rmName = await getRmFirstName();
   const [rmMessages, rmUnread, partners, partnerMessages, partnerUnread] = await Promise.all([
     prisma.message.findMany({
       where: { memberId: user.id, partnerId: null },
@@ -45,7 +47,7 @@ export default async function MessagesPage() {
     <div className="max-w-lg">
       <PageHero
         title="Messages"
-        subtitle="A direct line to your relationship manager and partners."
+        subtitle={`A direct line to ${rmName} and to the partners.`}
       />
 
       <ul className="flex flex-col divide-y divide-taupe/15">
@@ -56,10 +58,10 @@ export default async function MessagesPage() {
           >
             <div>
               <p className="font-display text-xl italic leading-tight text-ink">
-                Your Relationship Manager
+                {rmName}
               </p>
               <p className="text-sm text-taupe">
-                {rmMessages[0] ? rmMessages[0].body.slice(0, 60) : "Say hello."}
+                {rmMessages[0] ? rmMessages[0].body.slice(0, 60) : "Your relationship manager. Say hello."}
               </p>
             </div>
             <UnreadBadge count={rmUnread} />

@@ -6,7 +6,7 @@ export default function EmailLoginPage({
   searchParams: { error?: string };
 }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-app flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm animate-fade-up">
         <h1 className="mb-2 font-display text-3xl italic leading-tight text-ink">Sign in with your email</h1>
         <p className="mb-8 text-sm leading-relaxed text-taupe">
@@ -14,12 +14,12 @@ export default function EmailLoginPage({
         </p>
 
         {searchParams.error === "invalid" && (
-          <p className="mb-4 text-sm text-clay">
+          <p className="mb-4 text-sm text-gold">
             That link has expired or already been used. Request a new one below.
           </p>
         )}
         {searchParams.error === "missing" && (
-          <p className="mb-4 text-sm text-clay">Enter an email address to continue.</p>
+          <p className="mb-4 text-sm text-gold">Enter an email address to continue.</p>
         )}
 
         <form action={requestMagicLink} className="flex flex-col gap-3">

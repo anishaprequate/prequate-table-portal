@@ -140,7 +140,7 @@ export function RsvpButton({
   if (accepting && optimistic === "invited") {
     return (
       <>
-        <p className="mb-3 text-xs text-clay" aria-live="polite">
+        <p className="mb-3 text-xs text-gold" aria-live="polite">
           {CHIP.invited}. Accept to take your seat.
         </p>
         <div className="flex gap-3">
@@ -185,7 +185,7 @@ function StateChip({ state }: { state: Exclude<RsvpState, "none" | "invited"> })
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium animate-scale-in ${
-        muted ? "bg-taupe/10 text-taupe" : "bg-foil/15 text-clay"
+        muted ? "bg-taupe/10 text-taupe" : "bg-foil/15 text-gold"
       }`}
       aria-live="polite"
     >

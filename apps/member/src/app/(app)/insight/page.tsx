@@ -13,6 +13,9 @@ export default async function InsightPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  // Opening the list is what clears "new since your last visit".
+  await prisma.user.update({ where: { id: user.id }, data: { insightSeenAt: new Date() } });
+
   const q = (searchParams.q ?? "").trim();
   const bookmarkedOnly = searchParams.filter === "bookmarked";
 
@@ -93,7 +96,7 @@ export default async function InsightPage({
                     {tags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-clay"
+                        className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-gold"
                       >
                         {tag}
                       </span>

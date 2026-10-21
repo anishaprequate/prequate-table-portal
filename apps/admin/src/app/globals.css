@@ -124,8 +124,26 @@ body {
   main select,
   main textarea,
   main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]) {
-    font-size: 16px;
+    font-size: 16px !important;
   }
+  main select {
+    min-height: 44px !important;
+  }
+  main select {
+    -webkit-appearance: none;
+    appearance: none;
+    max-width: 100%;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1.5l5 5 5-5' fill='none' stroke='%23707070' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 0.75rem;
+    padding-right: 2.5rem !important;
+  }
+  main label:has(> select) {
+    max-width: 100%;
+    min-width: 0;
+  }
+
   main ul a,
   main ol a,
   main a[class*="text-deep-orange"] {
@@ -143,4 +161,16 @@ body {
   main label:has(> input[type="checkbox"]) {
     min-height: 44px;
   }
+}
+
+/* A full screen on iPhone Safari: 100vh counts the area behind the address bar,
+   so a page sized to it overflows. dvh is the visible height; the first line is
+   the fallback for older browsers. */
+.min-h-app {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }

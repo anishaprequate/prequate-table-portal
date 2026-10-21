@@ -3,7 +3,7 @@ import { LogoMark } from "@/components/wordmark";
 
 export default function LoginChoicePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-app flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm animate-fade-up">
         <span className="mb-6 inline-flex text-foil">
           <LogoMark className="h-9 w-9" />

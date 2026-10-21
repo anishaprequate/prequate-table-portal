@@ -24,7 +24,7 @@ export default async function MembersPage({
     prisma.user.findMany({
       where: {
         role: "MEMBER",
-        ...(q && { name: { contains: q } }),
+        ...(q && { name: { contains: q, mode: "insensitive" } }),
         ...(sector && { sector }),
         ...(eventId && { eventAttendances: { some: { eventId, joined: true } } }),
       },

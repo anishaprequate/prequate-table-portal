@@ -22,7 +22,7 @@ export function OnTheDayCard({ data }: { data: OnTheDay }) {
                       href={data.mapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-[44px] items-center text-clay underline decoration-clay/40 underline-offset-2"
+                      className="inline-flex min-h-[44px] items-center text-gold underline decoration-clay/40 underline-offset-2"
                     >
                       Open the map
                     </a>
@@ -39,7 +39,7 @@ export function OnTheDayCard({ data }: { data: OnTheDay }) {
   ];
 
   return (
-    <section className="card mt-6 p-5 sm:p-6" aria-labelledby="on-the-day">
+    <section className="panel-night mt-6 p-5 sm:p-6" aria-labelledby="on-the-day">
       <h2 id="on-the-day" className="mb-1 font-display text-3xl font-semibold text-ink">
         On the day
       </h2>

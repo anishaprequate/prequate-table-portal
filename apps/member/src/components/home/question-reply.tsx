@@ -59,7 +59,7 @@ export function QuestionReply({
           {saved ? "Update reply" : "Send reply"}
         </button>
       </div>
-      {error && <p className="text-xs text-clay" role="alert">{error}</p>}
+      {error && <p className="text-xs text-gold" role="alert">{error}</p>}
     </form>
   );
 }

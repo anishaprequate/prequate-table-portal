@@ -8,7 +8,7 @@ const label = "text-xs uppercase tracking-[0.28em] text-taupe";
 // For the 24 hours before an Hour.
 export function GettingReadyCard({ data }: { data: GettingReady }) {
   return (
-    <section className="card mt-6 p-5 sm:p-6" aria-labelledby="getting-ready">
+    <section className="panel-foil mt-6 p-5 sm:p-6" aria-labelledby="getting-ready">
       <h2 id="getting-ready" className="mb-4 font-display text-3xl font-semibold text-ink">
         Getting ready for your Hour
       </h2>

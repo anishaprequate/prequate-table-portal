@@ -44,7 +44,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
           <button
             type="submit"
             aria-label={bookmark ? "Remove bookmark" : "Bookmark this post"}
-            className={`flex h-11 w-11 items-center justify-center transition ${bookmark ? "text-clay hover:text-ink" : "text-taupe hover:text-ink"}`}
+            className={`flex h-11 w-11 items-center justify-center transition ${bookmark ? "text-foil hover:text-ink" : "text-taupe hover:text-ink"}`}
           >
             <svg width="24" height="24" viewBox="0 0 24 24">
               {bookmark ? (
@@ -88,7 +88,7 @@ export default async function InsightDetailPage({ params }: { params: { id: stri
       {tags.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           {tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-clay">
+            <span key={tag} className="rounded-full bg-foil/10 px-2.5 py-1 text-xs text-gold">
               {tag}
             </span>
           ))}

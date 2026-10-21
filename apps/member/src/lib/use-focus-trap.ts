@@ -11,6 +11,9 @@ export function useFocusTrap(
   container: RefObject<HTMLElement>,
   active: boolean,
   extra: RefObject<HTMLElement>[] = [],
+  // Put focus on the container itself, not its first control, so no control
+  // shows a focus ring just because a menu was opened by touch.
+  focusContainer = false,
 ) {
   useEffect(() => {
     if (!active) return;
@@ -25,7 +28,7 @@ export function useFocusTrap(
     };
 
     const first = root.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? root).focus({ preventScroll: true });
+    (focusContainer ? root : (first ?? root)).focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;

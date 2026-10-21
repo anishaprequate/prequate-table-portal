@@ -15,6 +15,7 @@ export type Section =
   | "events"
   | "introductions"
   | "requests"
+  | "advisors"
   | "insight"
   | "messages"
   | "notifications"
@@ -61,18 +62,38 @@ const ASSOCIATE_SECTIONS: Section[] = ["members", "bookings", "events", "introdu
 
 const OWNER_ONLY: Section[] = ["team", "activity"];
 
-export function navFor(role: string): NavItem[] {
-  if (role === "PARTNER") return PARTNER_NAV;
-  if (role === "ADMIN_ASSOCIATE") return ALL.filter((i) => ASSOCIATE_SECTIONS.includes(i.section));
-  if (role === "ADMIN_OWNER") return ALL;
-  return ALL.filter((i) => !OWNER_ONLY.includes(i.section)); // Amogh and any RM
+// Two things sit beside the role. hostsHours: the person gives Hours (Nag,
+// Rakesh and Amogh), so they get My Hours whatever their role. advisorDesk: the
+// person answers advisor requests (Anisha and Nag).
+export interface Flags {
+  hostsHours?: boolean;
+  advisorDesk?: boolean;
 }
 
-export function canSeeSection(role: string, section: Section): boolean {
+const MY_HOURS: NavItem = { section: "hours", href: "/hours", label: "My Hours" };
+const ADVISORS: NavItem = { section: "advisors", href: "/advisors", label: "Advisor requests" };
+
+export function navFor(role: string, flags: Flags = {}): NavItem[] {
+  let items: NavItem[];
+  if (role === "PARTNER") items = PARTNER_NAV;
+  else if (role === "ADMIN_ASSOCIATE") items = ALL.filter((i) => ASSOCIATE_SECTIONS.includes(i.section));
+  else if (role === "ADMIN_OWNER") items = ALL;
+  else items = ALL.filter((i) => !OWNER_ONLY.includes(i.section)); // Amogh and any RM
+
+  const full = role === "ADMIN_OWNER" || role === "ADMIN_RM";
+  if (full && flags.hostsHours) items = [items[0], MY_HOURS, ...items.slice(1)];
+  if (flags.advisorDesk && role !== "ADMIN_ASSOCIATE") {
+    const at = items.findIndex((i) => i.section === "requests");
+    items = at >= 0 ? [...items.slice(0, at + 1), ADVISORS, ...items.slice(at + 1)] : [...items, ADVISORS];
+  }
+  return items;
+}
+
+export function canSeeSection(role: string, section: Section, flags: Flags = {}): boolean {
   // Partners also keep Bookings (an Hour's detail page) and Reports, which are
   // not in their menu.
-  if (role === "PARTNER") return PARTNER_NAV.some((i) => i.section === section) || section === "bookings" || section === "reports";
-  return navFor(role).some((i) => i.section === section);
+  if (role === "PARTNER" && (section === "bookings" || section === "reports")) return true;
+  return navFor(role, flags).some((i) => i.section === section);
 }
 
 // Where a login lands after signing in.

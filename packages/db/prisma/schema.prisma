@@ -1,9 +1,9 @@
 // Prequate Table member portal — data model.
-// SQLite for the prototype. Swapping to Postgres for production is a
-// datasource change plus a migration.
+// Postgres, hosted on Supabase (Mumbai). DATABASE_URL is the pooled connection
+// the apps use; DIRECT_URL is the direct one that migrations use.
 //
-// SQLite's Prisma connector has no native enum type, so fields that would
-// normally be enums (role, status, etc.) are plain strings here. The valid
+// Fields that would normally be enums (role, status, etc.) are plain strings
+// here, a leftover of the SQLite prototype. The valid
 // values for each are defined as TypeScript union types in
 // packages/core/src/types.ts — read from there, not from this file.
 
@@ -12,8 +12,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // PRODUCTION NOTE (DPDPA): this table stores member personal data (name,
@@ -113,6 +114,9 @@ model User {
   // last here" has something to count from. tableLine is the member's own
   // sentence about what the table means to them.
   homeSeenAt DateTime?
+  // When the member last opened the Insight list. Posts published before this
+  // no longer count as new, whether or not each one was opened.
+  insightSeenAt DateTime?
   tableLine  String?
 
   // Meaningful only for role "PARTNER" — how many Hours they commit to
@@ -131,6 +135,20 @@ model User {
   // Meaningful only for role "PARTNER": the Google calendar whose recurring
   // blocks mark the partner's Table hours. Empty until Google sync is set up.
   tableHoursCalendarId String?
+
+  // Whether this person gives Hours. Separate from role, so Amogh keeps full
+  // admin access and also gives Hours.
+  hostsHours Boolean @default(false)
+  // Whether this person answers advisor requests (offers times, declines).
+  advisorDesk Boolean @default(false)
+
+  advisorRequests AdvisorRequest[] @relation("MemberAdvisorRequests")
+  pushSubscriptions PushSubscription[] @relation("UserPushSubscriptions")
+
+  // Notification bookkeeping: when the last daily digest push went out, and the
+  // month ("2026-10") the "your Hour is still open" email was last sent for.
+  lastDigestAt       DateTime?
+  hourOpenEmailMonth String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -301,6 +319,18 @@ model Booking {
   // Google Meet link that Google adds to the calendar event.
   mode     String @default("IN_PERSON")
   location String?
+
+  // A member's proposed new time for an Hour they already have. The Hour keeps
+  // its current time until the partner approves; the pending time holds the
+  // slot meanwhile. Both are null when no move is waiting.
+  pendingStart DateTime?
+  pendingEnd   DateTime?
+
+  // Notification markers: the "starts in an hour" push, the last post push, and
+  // the nudge to a partner who has not set the place of an in person Hour.
+  hourSoonPushedAt DateTime?
+  postPushedAt     DateTime?
+  placeNudgeSentAt DateTime?
 
   // Set when this booking is a requested follow-up to an earlier session.
   parentBookingId String?
@@ -576,6 +606,12 @@ model EventAttendance {
   // (joined) attendees, one reminder at 3 days if unanswered, then no
   // further nagging (see the /api/cron/event-surveys job). surveyRating is
   // the required 1-5 question; surveyFeedback is the optional free-text one.
+  // Notification markers, so each goes out once: the invitation, the day
+  // before, the morning of, and the dinner question.
+  invitationNotifiedAt DateTime?
+  dayBeforeSentAt      DateTime?
+  morningSentAt        DateTime?
+  questionNotifiedAt   DateTime?
   surveySentAt         DateTime?
   surveyReminderSentAt DateTime?
   surveyRating         Int?
@@ -624,7 +660,25 @@ model Notification {
   relatedEntityType String?
   relatedEntityId   String?
   readAt          DateTime?
+  // Push bookkeeping. pushDueAt is when the push may go out (held until 8 am
+  // during quiet hours); pushedAt is when it was handed to the push services.
+  pushDueAt       DateTime?
+  pushedAt        DateTime?
   createdAt       DateTime  @default(now())
+}
+
+// A phone or browser a member has allowed notifications on. One member can have
+// several. The endpoint is the push service's address for that device.
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserPushSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
 }
 
 // A partner or admin's written note: a title, a one-line subheading, an
@@ -792,3 +846,41 @@ model AppSettings {
   updatedAt        DateTime @updatedAt
 }
 
+
+// An advisor members can ask for an Hour with. Advisors have no login and no
+// calendar here: a member proposes a date, and the advisor desk comes back
+// with times.
+model Advisor {
+  id          String   @id @default(cuid())
+  name        String
+  headline    String?
+  photoUrl    String?
+  linkedinUrl String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  requests AdvisorRequest[]
+}
+
+// A member's request for an advisor Hour.
+// Status: "REQUESTED" (date proposed, waiting for times) | "OFFERED" (times
+// sent, member to pick) | "CONFIRMED" | "DECLINED" | "WITHDRAWN".
+model AdvisorRequest {
+  id            String    @id @default(cuid())
+  advisorId     String
+  advisor       Advisor   @relation(fields: [advisorId], references: [id])
+  memberId      String
+  member        User      @relation("MemberAdvisorRequests", fields: [memberId], references: [id])
+  proposedDate  DateTime
+  note          String?
+  status        String    @default("REQUESTED")
+  // JSON: [{ start, end }] the times offered, up to three.
+  offeredSlots  String?
+  confirmedStart DateTime?
+  confirmedEnd   DateTime?
+  declineReason String?
+  handledById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

@@ -37,7 +37,7 @@ export default async function MembersPage({
     prisma.user.findMany({
       where: {
         ...visibleWhere,
-        ...(q && { name: { contains: q } }),
+        ...(q && { name: { contains: q, mode: "insensitive" } }),
         ...(sectorFilter && { sector: sectorFilter }),
         ...(eventFilter && { eventAttendances: { some: { eventId: eventFilter, joined: true, event: eventVisibleTo(user.id) } } }),
       },
@@ -77,7 +77,7 @@ export default async function MembersPage({
       <div className="mb-8 flex gap-6 border-b border-taupe/15 text-sm">
         <Link
           href="/members?tab=directory"
-          className={`flex items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
+          className={`flex min-h-[44px] items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
             tab === "directory" ? "border-foil text-ink" : "border-transparent text-taupe hover:text-ink"
           }`}
         >
@@ -85,7 +85,7 @@ export default async function MembersPage({
         </Link>
         <Link
           href="/members?tab=sent"
-          className={`flex items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
+          className={`flex min-h-[44px] items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
             tab === "sent" ? "border-foil text-ink" : "border-transparent text-taupe hover:text-ink"
           }`}
         >
@@ -93,7 +93,7 @@ export default async function MembersPage({
         </Link>
         <Link
           href="/members?tab=received"
-          className={`flex items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
+          className={`flex min-h-[44px] items-center gap-2 border-b-2 pb-3 font-medium transition-all duration-300 ${
             tab === "received" ? "border-foil text-ink" : "border-transparent text-taupe hover:text-ink"
           }`}
         >

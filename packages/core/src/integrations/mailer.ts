@@ -37,7 +37,9 @@ function getTransport() {
 }
 
 export async function sendEmail({ to, subject, text }: SendEmailParams): Promise<SendEmailResult> {
-  const transport = getTransport();
+  // Safety switch for development and testing: with EMAIL_DISABLED=1 nothing is
+  // sent to anyone, whatever credentials are set. It is only logged.
+  const transport = process.env.EMAIL_DISABLED === "1" ? null : getTransport();
 
   if (!transport) {
     console.log(`[mock-email] to ${to} — ${subject}\n${text}`);

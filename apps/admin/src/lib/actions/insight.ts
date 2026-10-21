@@ -2,22 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import sanitizeHtml from "sanitize-html";
 import { prisma } from "@prequate/db";
-import { UPLOADS_DIR } from "@prequate/core";
+import { saveUpload } from "@prequate/core";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 
 async function storeImage(postId: string, file: FormDataEntryValue | null) {
   if (!(file instanceof File) || file.size === 0) return null;
   if (!file.type.startsWith("image/")) return null;
 
-  await mkdir(UPLOADS_DIR, { recursive: true });
   const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-  const storedName = `${postId}-${Date.now()}-${safeName}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(UPLOADS_DIR, storedName), buffer);
+  const storedName = await saveUpload("insight", `${postId}-${Date.now()}-${safeName}`, Buffer.from(await file.arrayBuffer()), file.type);
 
   return `/api/briefs/${storedName}`;
 }

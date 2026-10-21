@@ -1,6 +1,6 @@
 export default function CheckEmailPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-app flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm animate-fade-up text-center">
         <h1 className="mb-2 font-display text-3xl italic leading-tight text-ink">Check your email</h1>
         <p className="mb-8 text-sm leading-relaxed text-taupe">

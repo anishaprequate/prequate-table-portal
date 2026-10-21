@@ -1,24 +1,37 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Hover styles only where a pointer can really hover. On a phone a tap leaves
+  // the "hover" state stuck on, which is where stray gold rings came from.
+  future: { hoverOnlyWhenSupported: true },
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
-        bone: "#FBF7F0",
-        foil: "#C9A455",
-        clay: "#6E4A3A",
-        taupe: "#83766A",
-        ink: "#14120F",
+        // The Table's five colours, as variables so the whole app can change
+        // theme (see globals.css). bone is a surface, paper the page behind it,
+        // ink the main text. night and cream stay dark and light in both themes,
+        // for panels and for text on them.
+        bone: "rgb(var(--c-bone) / <alpha-value>)",
+        paper: "rgb(var(--c-paper) / <alpha-value>)",
+        foil: "rgb(var(--c-foil) / <alpha-value>)",
+        clay: "rgb(var(--c-clay) / <alpha-value>)",
+        taupe: "rgb(var(--c-taupe) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        night: "rgb(var(--c-night) / <alpha-value>)",
+        cream: "rgb(var(--c-cream) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-jost)", "sans-serif"],
         display: ["var(--font-cormorant)", "serif"],
       },
+      // Radii are variables so a phone can round its corners more than a laptop
+      // does (see globals.css).
       borderRadius: {
-        md: "0.625rem",
-        lg: "0.875rem",
-        xl: "1.25rem",
+        md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
+        xl: "var(--radius-xl)",
       },
       boxShadow: {
         sm: "0 1px 2px rgba(22,22,22,0.04), 0 1px 1px rgba(22,22,22,0.03)",

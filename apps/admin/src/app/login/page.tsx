@@ -4,7 +4,7 @@ import { PageHero } from "@/components/page-hero";
 
 export default function AdminLoginPage({ searchParams }: { searchParams: { error?: string } }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
+    <main className="flex min-h-app flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-sm">
         <PageHero title="Admin" accent="console" subtitle="Bookings, events, and content." />
 

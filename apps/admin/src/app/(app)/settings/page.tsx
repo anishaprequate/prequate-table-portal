@@ -27,7 +27,7 @@ export default async function SettingsPage({
       orderBy: { name: "asc" },
     }),
     prisma.user.findMany({
-      where: { role: "PARTNER" },
+      where: { hostsHours: true },
       select: { id: true, name: true, tableHoursCalendarId: true },
       orderBy: { name: "asc" },
     }),
@@ -83,6 +83,16 @@ export default async function SettingsPage({
       )}
       {searchParams.notion === "not-configured" && (
         <p className="mb-6 text-sm text-deep-orange">NOTION_TOKEN is not set for the admin app.</p>
+      )}
+
+      {isFullAdmin(admin.role) && (
+        <div className="mb-8">
+          <div className="mb-2 text-xs uppercase tracking-wide text-grey">Advisors</div>
+          <p className="mb-2 text-sm text-grey">The advisors members can ask for an Hour: name, photo, what they do, LinkedIn.</p>
+          <Link href="/settings/advisors" className="inline-flex min-h-[44px] items-center text-sm text-deep-orange underline">
+            Edit advisors
+          </Link>
+        </div>
       )}
 
       <div className="mb-8">

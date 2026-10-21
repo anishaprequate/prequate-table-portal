@@ -42,7 +42,7 @@ export async function getReportsData(filters: ReportFilters) {
 
   const memberWhere = {
     role: "MEMBER" as const,
-    ...(q && { name: { contains: q } }),
+    ...(q && { name: { contains: q, mode: "insensitive" as const } }),
     ...(sector && { sector }),
   };
 

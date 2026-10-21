@@ -1,3 +1,4 @@
+import { EventTimeFields } from "@/components/event-time-fields";
 import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
@@ -26,7 +27,7 @@ export default async function NewEventPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true, sector: true, archetype: true },
     }),
-    prisma.user.findMany({ where: { role: "PARTNER" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.user.findMany({ where: { OR: [{ role: "PARTNER" }, { hostsHours: true }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   return (
@@ -43,6 +44,10 @@ export default async function NewEventPage({
         <p className="mb-6 text-sm text-deep-orange">
           Add a title, start time, and end time before saving.
         </p>
+      )}
+
+      {searchParams.error === "times" && (
+        <p className="mb-6 text-sm text-deep-orange">The end time has to be after the start time.</p>
       )}
 
       <form action={createEvent} className="flex flex-col gap-4">
@@ -75,26 +80,7 @@ export default async function NewEventPage({
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5 text-sm">
-            Starts
-            <input
-              type="datetime-local"
-              name="startTime"
-              required
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            Ends
-            <input
-              type="datetime-local"
-              name="endTime"
-              required
-              className="rounded-md border border-grey/30 bg-paper px-3 py-2 text-ink"
-            />
-          </label>
-        </div>
+        <EventTimeFields />
 
         <div className="grid grid-cols-2 gap-4">
           <EventTierFields defaultTier="DINNER" />

@@ -19,7 +19,7 @@ export function PageHero({
         {accent && (
           <>
             {" "}
-            <span className="text-clay">{accent}</span>
+            <span className="text-gold">{accent}</span>
           </>
         )}
       </h1>

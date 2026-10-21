@@ -130,7 +130,7 @@ export function AskTheTable({ people }: { people: { id: string; name: string }[]
               />
             </label>
 
-            {error && <p className="text-xs text-clay" role="alert">{error}</p>}
+            {error && <p className="text-xs text-gold" role="alert">{error}</p>}
             <button type="submit" disabled={pending} className="btn-primary tap w-full disabled:opacity-50">
               {pending ? "Sending…" : "Send"}
             </button>

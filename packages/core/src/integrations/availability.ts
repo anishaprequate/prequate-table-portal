@@ -34,32 +34,93 @@ export interface AvailabilityProvider {
 }
 
 export const SLOT_MINUTES = 60;
+// A member proposes a start time on the hour or the half hour.
+export const START_STEP_MINUTES = 30;
 // An Hour cannot be booked closer than this to its start.
 export const LEAD_HOURS = 12;
 
-const BUSINESS_HOUR_START = 10;
-const BUSINESS_HOUR_END = 17;
+// Hours run between 10 am and 8 pm, and the last one must end by 8 pm, so the
+// latest start is 7 pm.
+export const DAY_START_HOUR = 10;
+export const DAY_END_HOUR = 20;
+
+const BUSINESS_HOUR_START = DAY_START_HOUR;
+const BUSINESS_HOUR_END = DAY_END_HOUR;
 
 const overlaps = (a: Range, b: Range) => a.start < b.end && b.start < a.end;
 
-// Pure: cut windows into slots, drop any that start too soon or touch busy time.
+// Is this a time an Hour may start? On the hour or half hour, from 10:00 to
+// 19:00 local time, so that it ends by 20:00.
+export function isHourStart(d: Date): boolean {
+  if (Number.isNaN(d.getTime())) return false;
+  if (d.getSeconds() !== 0 || d.getMilliseconds() !== 0) return false;
+  if (d.getMinutes() % START_STEP_MINUTES !== 0) return false;
+  const minutes = d.getHours() * 60 + d.getMinutes();
+  return minutes >= DAY_START_HOUR * 60 && minutes + SLOT_MINUTES <= DAY_END_HOUR * 60;
+}
+
+// Every start time of one day, 10:00, 10:30 ... 19:00. `day` is any moment in
+// that day.
+export function hourStartsOfDay(day: Date): Date[] {
+  const out: Date[] = [];
+  const last = DAY_END_HOUR * 60 - SLOT_MINUTES;
+  for (let m = DAY_START_HOUR * 60; m <= last; m += START_STEP_MINUTES) {
+    out.push(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, m, 0, 0));
+  }
+  return out;
+}
+
+// Round a time up to the next step, on the local clock.
+function alignUp(d: Date, stepMinutes: number): Date {
+  const out = new Date(d);
+  out.setSeconds(0, 0);
+  if (d.getSeconds() || d.getMilliseconds()) out.setMinutes(out.getMinutes() + 1);
+  const rem = out.getMinutes() % stepMinutes;
+  if (rem) out.setMinutes(out.getMinutes() + (stepMinutes - rem));
+  return out;
+}
+
+// Pure: cut windows into slots, drop any that start too soon, fall outside
+// 10 am to 8 pm, or touch busy time. With `stepMinutes` smaller than the slot,
+// slots overlap (a 10:30 start and a 10:00 start), which is how a member can
+// propose a half hour start.
 export function computeSlots(params: {
   windows: Range[];
   busy: Range[];
   slotMinutes?: number;
+  stepMinutes?: number;
   earliest: Date;
 }): CalendarSlot[] {
-  const step = (params.slotMinutes ?? SLOT_MINUTES) * 60_000;
+  const length = (params.slotMinutes ?? SLOT_MINUTES) * 60_000;
   const slots: CalendarSlot[] = [];
   for (const w of params.windows) {
-    for (let t = w.start.getTime(); t + step <= w.end.getTime(); t += step) {
-      const range = { start: new Date(t), end: new Date(t + step) };
-      if (range.start < params.earliest) continue;
-      if (params.busy.some((b) => overlaps(range, b))) continue;
-      slots.push({ startTime: range.start, endTime: range.end });
+    if (params.stepMinutes) {
+      const step = params.stepMinutes * 60_000;
+      for (let t = alignUp(w.start, params.stepMinutes).getTime(); t + length <= w.end.getTime(); t += step) {
+        const range = { start: new Date(t), end: new Date(t + length) };
+        if (!inDay(range)) continue;
+        if (range.start < params.earliest) continue;
+        if (params.busy.some((b) => overlaps(range, b))) continue;
+        slots.push({ startTime: range.start, endTime: range.end });
+      }
+    } else {
+      for (let t = w.start.getTime(); t + length <= w.end.getTime(); t += length) {
+        const range = { start: new Date(t), end: new Date(t + length) };
+        if (!inDay(range)) continue;
+        if (range.start < params.earliest) continue;
+        if (params.busy.some((b) => overlaps(range, b))) continue;
+        slots.push({ startTime: range.start, endTime: range.end });
+      }
     }
   }
   return slots.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
+// Inside 10 am to 8 pm on one local day.
+function inDay(r: Range): boolean {
+  const start = r.start.getHours() * 60 + r.start.getMinutes();
+  const length = (r.end.getTime() - r.start.getTime()) / 60_000;
+  return start >= DAY_START_HOUR * 60 && start + length <= DAY_END_HOUR * 60;
 }
 
 // The stand-in until Google is connected: every partner is open on weekdays,
@@ -104,7 +165,7 @@ export function bookingHorizon(now = new Date()): Date {
 
 export async function getOpenSlots(
   partner: PartnerRef,
-  options: { from?: Date; to?: Date; excludeBookingId?: string } = {},
+  options: { from?: Date; to?: Date; excludeBookingId?: string; stepMinutes?: number; slotMinutes?: number } = {},
 ): Promise<CalendarSlot[]> {
   const now = new Date();
   const earliest = new Date(now.getTime() + LEAD_HOURS * 3_600_000);
@@ -118,15 +179,19 @@ export async function getOpenSlots(
       where: { partnerId: partner.id, startTime: { lt: to }, endTime: { gt: from } },
       select: { startTime: true, endTime: true },
     }),
+    // A request waiting for the partner holds its time too, whether it is a new
+    // Hour or a member's proposed move.
     prisma.booking.findMany({
       where: {
         partnerId: partner.id,
         status: { not: "CANCELLED" },
-        startTime: { lt: to },
-        endTime: { gt: from },
+        OR: [
+          { startTime: { lt: to }, endTime: { gt: from } },
+          { pendingStart: { lt: to }, pendingEnd: { gt: from } },
+        ],
         ...(options.excludeBookingId ? { id: { not: options.excludeBookingId } } : {}),
       },
-      select: { startTime: true, endTime: true },
+      select: { startTime: true, endTime: true, pendingStart: true, pendingEnd: true },
     }),
   ]);
 
@@ -135,8 +200,13 @@ export async function getOpenSlots(
     busy: [
       ...busy,
       ...blocks.map((b) => ({ start: b.startTime, end: b.endTime })),
-      ...bookings.map((b) => ({ start: b.startTime, end: b.endTime })),
+      ...bookings.flatMap((b) => [
+        { start: b.startTime, end: b.endTime },
+        ...(b.pendingStart && b.pendingEnd ? [{ start: b.pendingStart, end: b.pendingEnd }] : []),
+      ]),
     ],
+    stepMinutes: options.stepMinutes,
+    slotMinutes: options.slotMinutes,
     earliest: from,
   });
 }

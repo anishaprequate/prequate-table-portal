@@ -13,7 +13,7 @@ export function StickyActionBar({ children }: { children: React.ReactNode }) {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-taupe/15 bg-bone/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-20 rounded-t-xl border-t border-taupe/15 bg-bone/95 px-5 pb-3 pt-3 max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
       <div className="mx-auto max-w-2xl">{children}</div>
     </div>,
     document.body,

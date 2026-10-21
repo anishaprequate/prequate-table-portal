@@ -9,6 +9,7 @@ import { CancelBookingForm } from "@/components/cancel-booking-form";
 import { getOpenOffers } from "@/lib/hour-offers";
 import { OfferCard } from "@/components/hour/offer-card";
 import { postKindLabel } from "@/lib/hour-posts";
+import { endedLabel, declineReason } from "@/lib/hour-status";
 
 export default async function BookingDetailPage({
   params,
@@ -48,8 +49,23 @@ export default async function BookingDetailPage({
       </h1>
       <p className="mb-10 text-sm text-taupe">
         {formatSlot(booking.startTime)}
-        {isCancelled && ", cancelled"}
+        {isCancelled && `, ${endedLabel(booking)}`}
       </p>
+      {isCancelled && declineReason(booking.cancellationReason) && (
+        <p className="-mt-8 mb-10 text-sm text-ink">{declineReason(booking.cancellationReason)}</p>
+      )}
+
+      {isUpcoming && booking.status === "REQUESTED" && (
+        <p className="card mb-8 bg-foil/5 px-3 py-2 text-sm text-ink">
+          Your request is with {booking.partner.name.split(" ")[0]}. We will let you know as soon as it is confirmed.
+        </p>
+      )}
+      {isUpcoming && booking.pendingStart && (
+        <p className="card mb-8 bg-foil/5 px-3 py-2 text-sm text-ink">
+          You asked to move this Hour to {formatSlot(booking.pendingStart)}. It stays at {formatSlot(booking.startTime)} until{" "}
+          {booking.partner.name.split(" ")[0]} confirms.
+        </p>
+      )}
 
       {offers.map((o) => (
         <div key={o.id} className="mb-8">
@@ -61,18 +77,32 @@ export default async function BookingDetailPage({
         <p className="mb-1 text-xs uppercase tracking-[0.28em] text-taupe">
           {booking.mode === "ONLINE" ? "Online" : "In person"}
         </p>
-        {booking.mode === "ONLINE" ? (
+        {booking.mode === "ONLINE" && booking.status === "REQUESTED" ? (
+          <p className="text-sm">You will receive a Google Meet link once it is confirmed.</p>
+        ) : booking.mode !== "ONLINE" && booking.status === "REQUESTED" ? (
+          booking.location ? (
+            <p className="text-sm">You suggested {booking.location}.</p>
+          ) : (
+            <p className="text-sm text-taupe">{booking.partner.name.split(" ")[0]} will suggest a place.</p>
+          )
+        ) : booking.mode === "ONLINE" ? (
           booking.location ? (
             <a
               href={booking.location}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] items-center break-all text-sm text-clay underline decoration-clay/40 underline-offset-2"
+              className="inline-flex min-h-[44px] items-center break-all text-sm text-gold underline decoration-clay/40 underline-offset-2"
             >
               {booking.location}
             </a>
           ) : (
             <p className="text-sm">You will receive a Google Meet link.</p>
+          )
+        ) : booking.status !== "REQUESTED" && !isCancelled ? (
+          booking.location ? (
+            <p className="text-sm">{booking.location}</p>
+          ) : (
+            <p className="text-sm text-taupe">The place will be confirmed shortly, and sent as a calendar invitation.</p>
           )
         ) : null}
       </div>
@@ -89,7 +119,7 @@ export default async function BookingDetailPage({
           <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Shared by {booking.partner.name.split(" ")[0]}</p>
           {booking.briefs.map((brief) => (
             <div key={brief.id} className="mb-4 text-sm">
-              <p className="mb-1 text-xs text-clay">{postKindLabel(brief.kind)}</p>
+              <p className="mb-1 text-xs text-gold">{postKindLabel(brief.kind)}</p>
               {brief.content && <p className="whitespace-pre-wrap">{brief.content}</p>}
               {brief.fileUrl && (
                 <a
@@ -98,7 +128,7 @@ export default async function BookingDetailPage({
                   rel="noopener noreferrer"
                   className="mt-2 flex items-center gap-3 rounded-md border border-foil/30 bg-foil/10 px-4 py-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-foil hover:shadow-md"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="flex-shrink-0 text-clay">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="flex-shrink-0 text-foil">
                     <path d="M14 3v5a2 2 0 0 0 2 2h5" />
                     <path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
                   </svg>
@@ -112,9 +142,11 @@ export default async function BookingDetailPage({
 
       {isUpcoming && (
         <div className="flex flex-wrap gap-3">
-          <Link href={`/the-hour/${booking.id}/reschedule`} className="btn-secondary">
-            Reschedule
-          </Link>
+          {booking.status !== "REQUESTED" && (
+            <Link href={`/the-hour/${booking.id}/reschedule`} className="btn-secondary">
+              {booking.pendingStart ? "Propose another time" : "Reschedule"}
+            </Link>
+          )}
           <CancelBookingForm bookingId={booking.id} action={cancelBooking} />
         </div>
       )}

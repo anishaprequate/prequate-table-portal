@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
-import { googleCalendar, createAlternativeOffer } from "@prequate/core";
+import { googleCalendar, createAlternativeOffer, notifyMember } from "@prequate/core";
+import { formatSlot } from "@/lib/format";
 import { getCurrentAdmin, isFullAdmin, canView, canWrite } from "@/lib/session";
 import { findBookingInMonth, formatMonthLabel } from "@/lib/monthly-cap";
 
@@ -93,7 +94,16 @@ export async function adminRescheduleBooking(formData: FormData) {
 
   await prisma.booking.update({
     where: { id: bookingId },
-    data: { startTime, endTime, status: "CONFIRMED" },
+    data: { startTime, endTime, status: "CONFIRMED", pendingStart: null, pendingEnd: null },
+  });
+
+  const partner = await prisma.user.findUnique({ where: { id: booking.partnerId }, select: { name: true } });
+  await notifyMember({
+    memberId: booking.memberId,
+    type: "hour_moved",
+    message: `Your Hour with ${(partner?.name ?? "your partner").split(" ")[0]} has moved to ${formatSlot(startTime)}.`,
+    entityType: "booking",
+    entityId: bookingId,
   });
 
   revalidatePath("/bookings");

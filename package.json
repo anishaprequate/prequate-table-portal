@@ -10,7 +10,21 @@
     "dev:admin": "npm run dev -w apps/admin",
     "db:generate": "npm run generate -w packages/db",
     "db:push": "npm run push -w packages/db",
+    "db:migrate": "npm run migrate -w packages/db",
+    "db:migrate:new": "npm run migrate:new -w packages/db",
     "db:seed": "npm run seed -w packages/db",
-    "set-password": "node scripts/set-password.cjs"
+    "set-password": "node scripts/set-password.cjs",
+    "jobs": "node scripts/run-notification-jobs.cjs",
+    "backup": "node scripts/backup.cjs",
+    "local:start": "node scripts/local-db.mjs start",
+    "local:stop": "node scripts/local-db.mjs stop",
+    "local:status": "node scripts/local-db.mjs status",
+    "local:refresh": "node scripts/local-db.mjs refresh",
+    "dev:member:offline": "node scripts/offline.cjs member",
+    "dev:admin:offline": "node scripts/offline.cjs admin",
+    "launch-check": "node scripts/launch-check.cjs"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^17.10.0-beta.17"
   }
 }

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 // The seat mark: the ring is the table, the eight dots are the seats, the
 // gold seat is the member's. Per The Table's identity spec — on paper it
@@ -32,11 +35,17 @@ export function LogoMark({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+// Fixed to the corner on a wide screen. Inside the app it sits on the dark
+// sidebar; on the sign-in screens there is no sidebar, so it sits on the page.
 export function Wordmark() {
+  const pathname = usePathname();
+  const outside = pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/arrive");
   return (
     <Link
       href="/"
-      className="pointer-events-auto fixed left-0 top-0 z-50 hidden min-h-[48px] items-center gap-2.5 bg-bone/80 px-6 py-4 backdrop-blur-md transition-opacity duration-300 hover:opacity-70 md:flex"
+      className={`pointer-events-auto fixed left-0 top-0 z-50 hidden min-h-[48px] items-center gap-2.5 px-6 py-4 transition-opacity duration-300 hover:opacity-70 md:flex ${
+        outside ? "bg-paper/80 backdrop-blur-md" : "panel-night !rounded-none !border-0 !shadow-none md:w-60"
+      }`}
     >
       <span className="text-ink">
         <LogoMark />

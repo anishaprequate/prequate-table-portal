@@ -10,14 +10,18 @@ import {
   getOnTheDay,
   getSeatStats,
   getIntroductionChoices,
+  getPendingSurvey,
 } from "@/lib/home";
 import { formatSeatDisplay } from "@/lib/format";
 import { Greeting } from "@/components/greeting";
 import { RoomWheel } from "@/components/room/room-wheel";
+import { RefreshOnReturn } from "@/components/refresh-on-return";
 import { ThisMonthCard } from "@/components/home/this-month-card";
 import { GettingReadyCard } from "@/components/home/getting-ready-card";
 import { OnTheDayCard } from "@/components/home/on-the-day-card";
 import { YourSeatCard } from "@/components/home/your-seat-card";
+import { SurveyNudgeCard } from "@/components/home/survey-nudge-card";
+import { HomeNudge } from "@/components/pwa/notification-controls";
 
 function greeting(hour: number): string {
   if (hour < 12) return "Good morning,";
@@ -32,7 +36,7 @@ export default async function HomePage() {
   const now = new Date();
   const firstName = user.name.split(" ")[0];
 
-  const [self, satellites, newSeatCaption, nextUp, since, thisMonth, gettingReady, onTheDay, seat, people] = await Promise.all([
+  const [self, satellites, newSeatCaption, nextUp, since, thisMonth, gettingReady, onTheDay, seat, people, pendingSurvey] = await Promise.all([
     getSelfSeat(user.id),
     getRoomSatellites(user.id),
     consumeNewSeatCaption(user.id),
@@ -43,6 +47,7 @@ export default async function HomePage() {
     getOnTheDay(user),
     getSeatStats(user),
     getIntroductionChoices(user.id),
+    getPendingSurvey(user),
   ]);
 
   // Everything above was read against the previous visit; now move it on.
@@ -55,9 +60,10 @@ export default async function HomePage() {
   return (
     <div className="max-w-2xl overflow-x-clip">
       <h1 className="mb-12 font-display text-4xl font-semibold leading-[1.1] text-ink sm:text-5xl">
-        <Greeting fallback={greeting(now.getHours())} /> <span className="italic text-clay">{firstName}.</span>
+        <Greeting fallback={greeting(now.getHours())} /> <span className="italic text-gold">{firstName}.</span>
       </h1>
 
+      <RefreshOnReturn />
       <RoomWheel
         seatNumber={self.seatNumber}
         seatingDate={self.seatingDate}
@@ -73,6 +79,8 @@ export default async function HomePage() {
 
       <div className="mt-12">
         {since && <p className="mb-6 text-sm text-taupe">{since}</p>}
+        <HomeNudge />
+        {pendingSurvey && <SurveyNudgeCard survey={pendingSurvey} />}
         <ThisMonthCard data={thisMonth} people={people} />
         {gettingReady && <GettingReadyCard data={gettingReady} />}
         {onTheDay && <OnTheDayCard data={onTheDay} />}

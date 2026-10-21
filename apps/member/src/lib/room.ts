@@ -52,6 +52,19 @@ export async function consumeNewSeatCaption(viewerId: string): Promise<NewSeatCa
   return { seatNumber, filledAt: captionable.filledAt };
 }
 
+// Posts published since the member last opened the Insight list. Opening the
+// list is enough to clear them; they do not have to open each post.
+async function countNewInsight(viewerId: string): Promise<number> {
+  const me = await prisma.user.findUnique({ where: { id: viewerId }, select: { insightSeenAt: true } });
+  return prisma.insightPost.count({
+    where: {
+      status: "PUBLISHED",
+      views: { none: { memberId: viewerId } },
+      ...(me?.insightSeenAt ? { publishedAt: { gt: me.insightSeenAt } } : {}),
+    },
+  });
+}
+
 export type SatelliteKey =
   | "hour"
   | "events"
@@ -85,7 +98,7 @@ export async function getRoomSatellites(viewerId: string): Promise<Satellite[]> 
     publishedPostsCount,
   ] = await Promise.all([
     prisma.booking.findFirst({
-      where: { memberId: viewerId, startTime: { gte: now }, status: { not: "CANCELLED" } },
+      where: { memberId: viewerId, startTime: { gte: now }, status: { in: ["CONFIRMED", "RESCHEDULE_REQUESTED"] } },
       orderBy: { startTime: "asc" },
       include: { partner: true },
     }),
@@ -97,9 +110,7 @@ export async function getRoomSatellites(viewerId: string): Promise<Satellite[]> 
     prisma.introductionRequest.count({
       where: { targetId: viewerId, routedAt: { not: null }, status: "SENT" },
     }),
-    prisma.insightPost.count({
-      where: { status: "PUBLISHED", views: { none: { memberId: viewerId } } },
-    }),
+    countNewInsight(viewerId),
     prisma.message.count({
       where: { memberId: viewerId, senderRole: { not: "MEMBER" }, read: false },
     }),

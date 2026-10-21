@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { acceptOffer } from "@/lib/actions/hour";
 import { useToast } from "@/components/toast";
 import type { OfferView } from "@/lib/hour-offers";
+import { shortSlot } from "@/lib/stable-date";
 
-const label = (iso: string) =>
-  new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+const label = (iso: string) => shortSlot(new Date(iso));
 
 // A partner cancelled or asked to move an Hour: three other times, one tap.
 export function OfferCard({ offer }: { offer: OfferView }) {
@@ -36,7 +36,9 @@ export function OfferCard({ offer }: { offer: OfferView }) {
       <p className="text-sm text-ink">
         {offer.reason === "CANCELLED"
           ? `${offer.partnerFirstName} cannot make your Hour.`
-          : `${offer.partnerFirstName} needs to move your Hour.`}{" "}
+          : offer.reason === "COUNTER"
+            ? `${offer.partnerFirstName} suggests other times.`
+            : `${offer.partnerFirstName} needs to move your Hour.`}{" "}
         Tap a time that suits you.
       </p>
       <div className="mt-4 flex flex-col gap-2">
@@ -56,7 +58,7 @@ export function OfferCard({ offer }: { offer: OfferView }) {
           </button>
         ))}
       </div>
-      {error && <p className="mt-3 text-xs text-clay" role="alert">{error}</p>}
+      {error && <p className="mt-3 text-xs text-gold" role="alert">{error}</p>}
     </div>
   );
 }

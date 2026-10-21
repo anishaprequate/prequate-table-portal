@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
+import { notifyMember } from "@prequate/core";
 import { getCurrentAdmin, isFullAdmin, canWrite } from "@/lib/session";
 
 export async function updateIntroductionRequest(formData: FormData) {
@@ -25,6 +26,18 @@ export async function updateIntroductionRequest(formData: FormData) {
       routedAt: routed ? existing.routedAt ?? new Date() : null,
     },
   });
+
+  // The first time it is passed on, the member it is for is told.
+  if (routed && !existing.routedAt) {
+    const requester = await prisma.user.findUnique({ where: { id: existing.requesterId }, select: { name: true } });
+    await notifyMember({
+      memberId: existing.targetId,
+      type: "intro_routed",
+      message: `${requester?.name ?? "A member"} would like to be introduced to you.`,
+      entityType: "intro_request",
+      entityId: id,
+    });
+  }
 
   revalidatePath("/introductions");
   revalidatePath(`/introductions/${id}`);

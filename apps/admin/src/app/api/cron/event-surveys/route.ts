@@ -1,85 +1,45 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@prequate/db";
-import { mailer, emailTemplates, createNotification } from "@prequate/core";
+import { emailTemplates, notifyMember } from "@prequate/core";
 
 // Meant to be hit periodically by a real scheduler in production (see
 // docs/integration-readiness.md) — same shape as /api/cron/hour-reminders.
-// Two passes in one job: (1) the initial survey, sent 24 hours after the
-// event ends to confirmed (joined) attendees; (2) one reminder at 3 days
-// if still unanswered, and never again after that (surveyReminderSentAt
-// gates it, same convention as Booking.reminderSentAt).
+// Finds confirmed attendees whose event ended 23-25 hours ago and sends the
+// two-question survey: one bell notification and one email, nothing more. There
+// is no reminder email any more; Home keeps a quiet nudge until it is answered
+// (surveySentAt gates it, so a repeat run never sends twice).
 export async function GET(request: Request) {
   const secret = new URL(request.url).searchParams.get("secret");
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return new NextResponse("Not authorized", { status: 401 });
   }
 
-  const memberAppUrl = process.env.MEMBER_APP_URL ?? "http://localhost:3000";
+  const memberAppUrl = (process.env.MEMBER_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const now = Date.now();
 
-  const initialWindowStart = new Date(now - 25 * 60 * 60 * 1000);
-  const initialWindowEnd = new Date(now - 23 * 60 * 60 * 1000);
   const toSend = await prisma.eventAttendance.findMany({
     where: {
       joined: true,
       surveySentAt: null,
-      event: { endTime: { gte: initialWindowStart, lte: initialWindowEnd } },
+      event: { endTime: { gte: new Date(now - 25 * 60 * 60 * 1000), lte: new Date(now - 23 * 60 * 60 * 1000) } },
     },
-    include: { event: true, member: true },
+    include: { event: true },
   });
 
   let sent = 0;
   for (const attendance of toSend) {
+    await prisma.eventAttendance.update({ where: { id: attendance.id }, data: { surveySentAt: new Date() } });
     const link = `${memberAppUrl}/events/${attendance.eventId}/survey`;
-    await createNotification({
-      recipientId: attendance.memberId,
+    await notifyMember({
+      memberId: attendance.memberId,
       type: "event_survey",
       message: `How would you rate ${attendance.event.title}?`,
-      relatedEntityType: "event",
-      relatedEntityId: attendance.eventId,
+      entityType: "event",
+      entityId: attendance.eventId,
+      email: emailTemplates.eventSurveyEmail({ eventTitle: attendance.event.title, link }),
     });
-    if (attendance.member.email && attendance.member.emailEventSurveys) {
-      const { subject, text } = emailTemplates.eventSurveyEmail({ eventTitle: attendance.event.title, link });
-      await mailer.sendEmail({ to: attendance.member.email, subject, text });
-    }
-    await prisma.eventAttendance.update({ where: { id: attendance.id }, data: { surveySentAt: new Date() } });
     sent++;
   }
 
-  const reminderWindowStart = new Date(now - 75 * 60 * 60 * 1000);
-  const reminderWindowEnd = new Date(now - 71 * 60 * 60 * 1000);
-  const toRemind = await prisma.eventAttendance.findMany({
-    where: {
-      surveyRespondedAt: null,
-      surveyReminderSentAt: null,
-      surveySentAt: { gte: reminderWindowStart, lte: reminderWindowEnd },
-    },
-    include: { event: true, member: true },
-  });
-
-  let reminded = 0;
-  for (const attendance of toRemind) {
-    const link = `${memberAppUrl}/events/${attendance.eventId}/survey`;
-    await createNotification({
-      recipientId: attendance.memberId,
-      type: "event_survey",
-      message: `Still time to rate ${attendance.event.title}`,
-      relatedEntityType: "event",
-      relatedEntityId: attendance.eventId,
-    });
-    if (attendance.member.email && attendance.member.emailEventSurveys) {
-      const { subject, text } = emailTemplates.eventSurveyReminderEmail({
-        eventTitle: attendance.event.title,
-        link,
-      });
-      await mailer.sendEmail({ to: attendance.member.email, subject, text });
-    }
-    await prisma.eventAttendance.update({
-      where: { id: attendance.id },
-      data: { surveyReminderSentAt: new Date() },
-    });
-    reminded++;
-  }
-
-  return NextResponse.json({ sent, reminded });
+  return NextResponse.json({ sent });
 }

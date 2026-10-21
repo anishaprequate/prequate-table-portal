@@ -20,16 +20,23 @@ import { EventHomeFields } from "@/components/event-home-fields";
 import { EventAccessSection } from "@/components/event-access-section";
 import { invitationStatus } from "@/lib/invitation-status";
 import { EventTierFields } from "@/components/event-tier-fields";
+import { EventTimeFields } from "@/components/event-time-fields";
 import { BackLink } from "@/components/back-link";
 
 const EDIT_FORM_ID = "event-edit-form";
+
+// The value a datetime-local field expects, in the server's own clock: the
+// same one the save reads it back in.
+const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalInput = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 export default async function EventEditPage({
   params,
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { sector?: string; archetype?: string; saved?: string };
+  searchParams: { sector?: string; archetype?: string; saved?: string; error?: string };
 }) {
   const admin = await getCurrentAdmin();
   if (!admin || !canView(admin.role)) redirect("/bookings");
@@ -43,7 +50,7 @@ export default async function EventEditPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true, sector: true, archetype: true },
     }),
-    prisma.user.findMany({ where: { role: "PARTNER" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.user.findMany({ where: { OR: [{ role: "PARTNER" }, { hostsHours: true }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   if (!detail) notFound();
   const { event, isPast } = detail;
@@ -176,6 +183,7 @@ export default async function EventEditPage({
   return (
     <div className="max-w-md">
       {searchParams.saved && <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">Saved.</p>}
+      {searchParams.error === "times" && <p className="mb-6 text-sm text-deep-orange">The end time has to be after the start time.</p>}
       <EventHeader detail={detail} writable={writable} />
       <EventDetailNav eventId={event.id} active="edit" showEdit={writable} />
 
@@ -205,6 +213,13 @@ export default async function EventEditPage({
           {event.imageUrl ? "Replace cover image" : "Add a cover image"}
           <input type="file" name="image" accept="image/*" className="text-sm" />
         </label>
+
+        <EventTimeFields defaultStart={toLocalInput(event.startTime)} defaultEnd={toLocalInput(event.endTime)} />
+        {event.publishedAt && (
+          <p className="-mt-2 text-xs text-grey">
+            Changing the date or place tells everyone who is going or invited, and updates their calendar.
+          </p>
+        )}
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-xs uppercase tracking-wide text-grey">Location</span>

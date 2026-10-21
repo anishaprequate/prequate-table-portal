@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toggleSlot, setDay } from "@/lib/actions/partner";
+import { clockTime } from "@/lib/stable-date";
 
 export interface DaySlotView {
   start: string; // ISO
@@ -10,7 +11,7 @@ export interface DaySlotView {
 }
 
 const timeLabel = (iso: string) =>
-  new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+  clockTime(new Date(iso));
 
 // One day of a partner's availability. Tap a time to mark it unavailable, tap
 // it again to open it. Changes show at once and are saved in the background.

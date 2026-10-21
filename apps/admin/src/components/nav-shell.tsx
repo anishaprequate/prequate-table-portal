@@ -23,6 +23,7 @@ export function NavShell({
   readOnly,
   unreadMessages = 0,
   unreadNotifications = 0,
+  toConfirm = 0,
 }: {
   children: React.ReactNode;
   items: Item[];
@@ -32,6 +33,8 @@ export function NavShell({
   readOnly?: boolean;
   unreadMessages?: number;
   unreadNotifications?: number;
+  // Hours waiting for this login's answer.
+  toConfirm?: number;
 }) {
   const pathname = usePathname();
   const [unread, setUnread] = useState(unreadMessages);
@@ -83,6 +86,14 @@ export function NavShell({
                 {unread}
               </span>
             )}
+            {(item.href === "/bookings" || item.href === "/hours") && toConfirm > 0 && (
+              <span
+                className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper"
+                title="Hours waiting for confirmation"
+              >
+                {toConfirm}
+              </span>
+            )}
             {item.href === "/notifications" && unreadNotifications > 0 && (
               <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-deep-orange px-1 text-[10px] font-medium text-paper">
                 {unreadNotifications}
@@ -118,12 +129,12 @@ export function NavShell({
   );
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex min-h-app flex-col md:flex-row">
       {/* Phone: a slim top bar. */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-grey/15 bg-paper/95 px-4 backdrop-blur md:hidden">
-        <Link href="/" className="flex min-h-[56px] items-center font-display text-lg italic text-ink">
-          Admin
-        </Link>
+        {/* The wordmark (PREQUATE Admin) is drawn over this corner on every page, so
+            the link carries no text of its own; taps pass through the wordmark. */}
+        <Link href="/" aria-label="Admin home" className="flex min-h-[56px] w-44 items-center" />
         <button
           type="button"
           onClick={() => setOpen(true)}

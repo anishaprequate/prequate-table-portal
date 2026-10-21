@@ -25,12 +25,15 @@ export interface EventCardData {
 
 const MONTH = new Intl.DateTimeFormat("en-IN", { month: "short" });
 
-export function EventCard({ event }: { event: EventCardData }) {
+const TONES = { bone: "card", night: "panel-night", clay: "panel-clay" } as const;
+
+// tone gives a list some rhythm: the card can sit light, dark, or in clay.
+export function EventCard({ event, tone = "bone" }: { event: EventCardData; tone?: keyof typeof TONES }) {
   const tierLabel = EVENT_TIER_LABELS[event.tier as EventTier] ?? event.tier;
   const showRsvp = !event.past && !event.cancelled;
 
   return (
-    <article className="card overflow-hidden animate-fade-up">
+    <article className={`${TONES[tone]} overflow-hidden animate-fade-up`}>
       <Link href={`/events/${event.id}`} className="tap block">
         <div className="relative aspect-[16/9] w-full overflow-hidden bg-foil/10">
           {event.imageUrl ? (
@@ -43,8 +46,8 @@ export function EventCard({ event }: { event: EventCardData }) {
             />
           ) : (
             <div
-              className="grain relative flex h-full w-full items-center justify-center text-clay/40"
-              style={{ background: "linear-gradient(150deg, rgba(201,164,85,0.22), rgba(251,247,240,1) 70%)" }}
+              className="grain relative flex h-full w-full items-center justify-center text-foil/50"
+              style={{ background: "linear-gradient(150deg, rgb(var(--c-foil) / 0.25), rgb(var(--c-bone)) 70%)" }}
             >
               <LogoMark className="h-14 w-14" />
             </div>
@@ -57,12 +60,12 @@ export function EventCard({ event }: { event: EventCardData }) {
 
           <div className="absolute right-3 top-3 flex gap-2">
             {event.cancelled && (
-              <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] text-bone">Cancelled</span>
+              <span className="rounded-full bg-night/80 px-2.5 py-1 text-[11px] text-cream">Cancelled</span>
             )}
             {event.closed && (
-              <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] text-bone">By invitation</span>
+              <span className="rounded-full bg-night/80 px-2.5 py-1 text-[11px] text-cream">By invitation</span>
             )}
-            <span className="rounded-full bg-bone/90 px-2.5 py-1 text-[11px] text-clay">{tierLabel}</span>
+            <span className="rounded-full bg-bone/90 px-2.5 py-1 text-[11px] text-gold">{tierLabel}</span>
           </div>
         </div>
 
@@ -96,7 +99,7 @@ export function EventCard({ event }: { event: EventCardData }) {
                 <span />
               )}
               {event.spotsLeft !== null && !event.past && (
-                <span className="text-xs text-clay">
+                <span className="text-xs text-gold">
                   {event.spotsLeft > 0 ? `${event.spotsLeft} spot${event.spotsLeft === 1 ? "" : "s"} left` : "Full"}
                 </span>
               )}

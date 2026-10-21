@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentAdmin, canView } from "@/lib/session";
 import { BOOKING_STATUS_LABELS, type BookingStatus } from "@prequate/core";
-import { formatSlot } from "@/lib/format";
+import { formatSlot, waitingFor } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 
 export default async function BookingsPage() {
@@ -19,8 +19,14 @@ export default async function BookingsPage() {
   });
 
   const now = new Date();
-  const upcoming = bookings
-    .filter((b) => b.status !== "CANCELLED" && b.startTime >= now)
+  const live = bookings.filter((b) => b.status !== "CANCELLED" && b.startTime >= now);
+  // Waiting for a partner's answer: a new request, or a member's proposed move.
+  // These come first, longest waiting at the top, and are not repeated below.
+  const isWaiting = (b: (typeof bookings)[number]) => b.status === "REQUESTED" || Boolean(b.pendingStart);
+  const waitingSince = (b: (typeof bookings)[number]) => (b.status === "REQUESTED" ? b.createdAt : b.updatedAt);
+  const needsConfirmation = live.filter(isWaiting).sort((a, b) => waitingSince(a).getTime() - waitingSince(b).getTime());
+  const upcoming = live
+    .filter((b) => !isWaiting(b))
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   const past = bookings.filter((b) => b.startTime < now || b.status === "CANCELLED");
 
@@ -82,9 +88,61 @@ export default async function BookingsPage() {
         </div>
       )}
 
+      {needsConfirmation.length > 0 && (
+        <section className="mb-12" aria-labelledby="needs-confirmation">
+          <div className="mb-4 flex items-center gap-3">
+            <h2 id="needs-confirmation" className="text-xs font-medium uppercase tracking-wide text-deep-orange">
+              Needs confirmation
+            </h2>
+            <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-deep-orange px-2 text-xs font-medium text-paper">
+              {needsConfirmation.length}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-3">
+            {needsConfirmation.map((b) => {
+              const isMove = b.status !== "REQUESTED" && b.pendingStart;
+              const target = isMove ? b.pendingStart! : b.startTime;
+              const soon = target.getTime() - now.getTime() <= 24 * 3_600_000;
+              return (
+                <li key={b.id}>
+                  <Link
+                    href={`/bookings/${b.id}`}
+                    className="block rounded-lg border border-orange/50 bg-orange/10 p-4 transition hover:border-deep-orange/60 hover:bg-orange/15"
+                  >
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-deep-orange px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-paper">
+                        {isMove ? "Move requested" : "Awaiting confirmation"}
+                      </span>
+                      {soon && <span className="text-xs font-medium text-deep-orange">Needs an answer today</span>}
+                    </div>
+                    <p className="font-display text-xl italic leading-tight text-ink">
+                      {b.member.name}
+                      {viewAll && <span className="font-sans text-sm not-italic text-grey"> · {b.partner.name}</span>}
+                    </p>
+                    <p className="text-sm text-ink">
+                      {isMove ? (
+                        <>
+                          Wants to move {formatSlot(b.startTime)} to <strong className="font-medium">{formatSlot(target)}</strong>
+                        </>
+                      ) : (
+                        <>
+                          Asks for <strong className="font-medium">{formatSlot(target)}</strong>, {b.mode === "ONLINE" ? "online" : "in person"}
+                          {b.mode !== "ONLINE" && b.location ? `, at ${b.location}` : ""}
+                        </>
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-grey">Asked {waitingFor(waitingSince(b), now)}. Open it to confirm, suggest other times, or decline.</p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="mb-12">
-        <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Upcoming</h2>
-        {upcoming.length === 0 && <p className="text-sm text-grey">Nothing on the calendar.</p>}
+        <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Confirmed and upcoming</h2>
+        {upcoming.length === 0 && <p className="text-sm text-grey">Nothing confirmed on the calendar.</p>}
         <BookingTable bookings={upcoming} showPartner={viewAll} />
       </section>
 
@@ -107,6 +165,8 @@ function BookingTable({
     status: string;
     member: { name: string };
     partner: { name: string };
+    mode?: string;
+    location?: string | null;
   }>;
   showPartner: boolean;
 }) {
@@ -127,6 +187,9 @@ function BookingTable({
               {formatSlot(booking.startTime)}
               {booking.status !== "REQUESTED" && booking.status !== "CONFIRMED" &&
                 ` — ${BOOKING_STATUS_LABELS[booking.status as BookingStatus] ?? booking.status}`}
+              {booking.status === "CONFIRMED" && booking.startTime.getTime() > Date.now() && (
+                <span className="ml-2 rounded-full bg-grey/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-grey">Confirmed</span>
+              )}
               {booking.status !== "CANCELLED" &&
                 booking.startTime.getTime() - Date.now() <= 24 * 60 * 60 * 1000 &&
                 booking.startTime.getTime() > Date.now() && (

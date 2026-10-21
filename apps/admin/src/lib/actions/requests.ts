@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
+import { notifyMember } from "@prequate/core";
 import { getCurrentAdmin, canView, canWrite } from "@/lib/session";
 
 const STATUSES = ["NEW", "IN_PROGRESS", "DONE"];
@@ -17,7 +18,24 @@ export async function updateTableRequest(formData: FormData) {
   if (!id || !STATUSES.includes(status)) redirect("/requests");
   const adminNote = String(formData.get("adminNote") ?? "").trim() || null;
 
+  const before = await prisma.tableRequest.findUnique({ where: { id }, select: { status: true, type: true, memberId: true } });
   await prisma.tableRequest.update({ where: { id }, data: { status, adminNote } });
+
+  // When a request moves to Done, the member is told, with the team's note.
+  if (before && before.status !== "DONE" && status === "DONE") {
+    const label = before.type === "BRIEF" ? "brief" : before.type === "PEER_HOUR" ? "peer Hour" : "reservation";
+    await notifyMember({
+      memberId: before.memberId,
+      type: "request_done",
+      message: `Your ${label} request is done.${adminNote ? ` ${adminNote}` : ""}`,
+      entityType: "request",
+      entityId: id,
+      email: {
+        subject: `Your ${label} request is done`,
+        text: `Your ${label} request is done.${adminNote ? `\n\nFrom the team: ${adminNote}` : ""}\n\nSee it in The Prequate Table.`,
+      },
+    });
+  }
   revalidatePath("/requests");
   redirect("/requests?saved=1");
 }
@@ -69,7 +87,7 @@ export async function savePartnerCalendars(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin || !canView(admin.role) || !canWrite(admin.role)) redirect("/bookings");
 
-  const partners = await prisma.user.findMany({ where: { role: "PARTNER" }, select: { id: true } });
+  const partners = await prisma.user.findMany({ where: { hostsHours: true }, select: { id: true } });
   for (const p of partners) {
     const value = String(formData.get(`calendar_${p.id}`) ?? "").trim().slice(0, 200) || null;
     await prisma.user.update({ where: { id: p.id }, data: { tableHoursCalendarId: value } });

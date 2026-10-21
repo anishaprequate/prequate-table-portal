@@ -77,7 +77,7 @@ export function TableLine({ initial }: { initial: string | null }) {
         </button>
         <span className="ml-auto text-[11px] text-taupe">{value.length}/240</span>
       </div>
-      {error && <p className="text-xs text-clay" role="alert">{error}</p>}
+      {error && <p className="text-xs text-gold" role="alert">{error}</p>}
     </form>
   );
 }

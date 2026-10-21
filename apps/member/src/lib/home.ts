@@ -3,6 +3,7 @@ import { eventVisibleTo } from "./event-access";
 import { getOpenSlots } from "./availability";
 import { getRoomPulseLine } from "./partner-availability";
 import { getOpenOffers, type OfferView } from "./hour-offers";
+import { findAdvisorRequestInMonth } from "./monthly-cap";
 
 // Everything below the dial on Home. Each function reads real records and
 // returns null (or an empty list) when there is nothing to say, so the page
@@ -81,12 +82,17 @@ export async function getSinceLastVisit(user: { id: string; homeSeenAt: Date | n
 // ------------------------------------------------------------ 2. This month
 
 export interface MonthHour {
-  state: "booked" | "held" | "open";
+  state: "booked" | "held" | "open" | "advisor";
+  // Booked only: the partner has not confirmed yet.
+  awaiting?: boolean;
   monthName: string;
-  // Booked or held: the partner and when.
+  // Booked or held: the partner and when. Advisor: the advisor, and either the
+  // time confirmed or the day proposed.
   partnerName?: string;
   startTime?: Date;
   bookingId?: string;
+  // Advisor only: where the request stands.
+  advisorStatus?: "REQUESTED" | "OFFERED" | "CONFIRMED";
   // Open, in the last ten days of the month: the partner with a day to offer.
   invitation?: string;
 }
@@ -143,6 +149,7 @@ export async function getThisMonth(user: { id: string }): Promise<ThisMonth> {
   ]);
 
   // Your Hour.
+  const advisorRequest = bookings.length ? null : await findAdvisorRequestInMonth(user.id, now);
   const upcoming = bookings.find((b) => b.startTime >= now);
   let hour: MonthHour;
   if (upcoming) {
@@ -152,10 +159,20 @@ export async function getThisMonth(user: { id: string }): Promise<ThisMonth> {
       partnerName: upcoming.partner.name,
       startTime: upcoming.startTime,
       bookingId: upcoming.id,
+      awaiting: upcoming.status === "REQUESTED",
     };
   } else if (bookings.length) {
     const last = bookings[bookings.length - 1];
     hour = { state: "held", monthName: name, partnerName: last.partner.name, startTime: last.startTime, bookingId: last.id };
+  } else if (advisorRequest) {
+    const request = advisorRequest;
+    hour = {
+      state: "advisor",
+      monthName: name,
+      partnerName: request.advisor.name,
+      startTime: request.status === "CONFIRMED" && request.confirmedStart ? request.confirmedStart : request.proposedDate,
+      advisorStatus: request.status as "REQUESTED" | "OFFERED" | "CONFIRMED",
+    };
   } else {
     hour = { state: "open", monthName: name };
     const lastTenDays = now.getDate() >= daysInMonth - 9;
@@ -189,7 +206,7 @@ export async function getThisMonth(user: { id: string }): Promise<ThisMonth> {
 // with an Hour still to give this month and the soonest open day.
 async function partnerWithADay(now: Date, monthEnd: Date, monthName: string): Promise<string> {
   const base = `Your ${monthName} Hour is still open.`;
-  const partners = await prisma.user.findMany({ where: { role: "PARTNER" }, orderBy: { name: "asc" } });
+  const partners = await prisma.user.findMany({ where: { hostsHours: true }, orderBy: { name: "asc" } });
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const grouped = await prisma.booking.groupBy({
     by: ["partnerId"],
@@ -228,7 +245,7 @@ export async function getGettingReady(user: { id: string }): Promise<GettingRead
   const booking = await prisma.booking.findFirst({
     where: {
       memberId: user.id,
-      status: { in: ["REQUESTED", "CONFIRMED"] },
+      status: "CONFIRMED",
       startTime: { gte: now, lte: new Date(now.getTime() + DAY) },
     },
     orderBy: { startTime: "asc" },
@@ -337,4 +354,29 @@ export async function getIntroductionChoices(userId: string): Promise<{ id: stri
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+}
+
+// ------------------------------------------------------ Survey nudge
+
+export interface PendingSurvey {
+  eventId: string;
+  title: string;
+}
+
+// An event the member went to, ended in the last two weeks, and has not rated.
+// Home keeps asking quietly until it is answered or two weeks pass. The one
+// email is sent a day after the event; this is the standing nudge.
+export async function getPendingSurvey(user: { id: string }): Promise<PendingSurvey | null> {
+  const now = new Date();
+  const attendance = await prisma.eventAttendance.findFirst({
+    where: {
+      memberId: user.id,
+      joined: true,
+      surveyRespondedAt: null,
+      event: { cancelledAt: null, endTime: { lt: now, gte: new Date(now.getTime() - 14 * 24 * 3_600_000) } },
+    },
+    orderBy: { event: { endTime: "desc" } },
+    include: { event: { select: { id: true, title: true } } },
+  });
+  return attendance ? { eventId: attendance.event.id, title: attendance.event.title } : null;
 }

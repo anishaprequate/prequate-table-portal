@@ -7,7 +7,14 @@ export default async function AdminHomePage() {
   const now = new Date();
   const weekEnd = new Date(now.getTime() + 7 * 24 * 3_600_000);
 
-  const [requests, intros, approvals, messages, hoursThisWeek] = await Promise.all([
+  const [toConfirm, requests, intros, approvals, messages, hoursThisWeek] = await Promise.all([
+    prisma.booking.count({
+      where: {
+        status: { not: "CANCELLED" },
+        startTime: { gte: now },
+        OR: [{ status: "REQUESTED" }, { pendingStart: { not: null } }],
+      },
+    }),
     prisma.tableRequest.count({ where: { status: { not: "DONE" } } }),
     prisma.introductionRequest.count({ where: { routedAt: null, status: "SENT" } }),
     prisma.eventAttendance.count({
@@ -15,11 +22,12 @@ export default async function AdminHomePage() {
     }),
     prisma.message.count({ where: { senderRole: "MEMBER", read: false, partnerId: null } }),
     prisma.booking.count({
-      where: { status: { in: ["CONFIRMED", "REQUESTED", "RESCHEDULE_REQUESTED"] }, startTime: { gte: now, lt: weekEnd } },
+      where: { status: { in: ["CONFIRMED", "RESCHEDULE_REQUESTED"] }, startTime: { gte: now, lt: weekEnd } },
     }),
   ]);
 
   const rows = [
+    { href: "/bookings", label: "Hours to confirm", note: "Requests and moves waiting for a partner's answer", count: toConfirm },
     { href: "/requests", label: "Requests from members", note: "Briefs, peer Hours, reservations", count: requests },
     { href: "/introductions", label: "Introductions to route", note: "Waiting for you to pass on", count: intros },
     { href: "/events", label: "Event registrations to approve", note: "On upcoming events", count: approvals },

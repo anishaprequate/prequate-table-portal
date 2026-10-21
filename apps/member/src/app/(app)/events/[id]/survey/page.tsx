@@ -48,7 +48,7 @@ export default async function EventSurveyPage({
         <p className="card mb-6 animate-fade-up bg-foil/5 px-3 py-2 text-sm text-ink">Thanks — that's noted.</p>
       )}
       {searchParams.error === "rating" && (
-        <p className="mb-6 text-sm text-clay">Pick a rating from 1 to 5 before sending.</p>
+        <p className="mb-6 text-sm text-gold">Pick a rating from 1 to 5 before sending.</p>
       )}
 
       {alreadyResponded ? (

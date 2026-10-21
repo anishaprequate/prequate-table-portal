@@ -1,6 +1,6 @@
 import { prisma } from "@prequate/db";
 import { getOpenSlots, LEAD_HOURS } from "./integrations/availability";
-import { createNotification } from "./notifications";
+import { notifyMember } from "./notify";
 
 const OFFER_DAYS = 7;
 
@@ -61,15 +61,15 @@ export async function createAlternativeOffer(params: {
 
   const first = booking.partner.name.split(" ")[0];
   if (picks.length === 0) {
-    await createNotification({
-      recipientId: booking.memberId,
-      type: "hour_offer",
+    await notifyMember({
+      memberId: booking.memberId,
+      type: params.reason === "CANCELLED" ? "hour_cancelled" : "hour_moved",
       message:
         params.reason === "CANCELLED"
           ? `${first} cannot make your Hour. There are no other times open in the next week, so please choose a new one.`
           : `${first} needs to move your Hour. There are no other times open in the next week, so please choose a new one.`,
-      relatedEntityType: "booking",
-      relatedEntityId: booking.id,
+      entityType: "booking",
+      entityId: booking.id,
     });
     return null;
   }
@@ -83,15 +83,15 @@ export async function createAlternativeOffer(params: {
     },
   });
 
-  await createNotification({
-    recipientId: booking.memberId,
+  await notifyMember({
+    memberId: booking.memberId,
     type: "hour_offer",
     message:
       params.reason === "CANCELLED"
         ? `${first} cannot make your Hour. Here are ${picks.length} other time${picks.length === 1 ? "" : "s"}. Tap one to take it.`
         : `${first} needs to move your Hour. Here are ${picks.length} other time${picks.length === 1 ? "" : "s"}. Tap one to take it.`,
-    relatedEntityType: "booking",
-    relatedEntityId: booking.id,
+    entityType: "booking",
+    entityId: booking.id,
   });
 
   return offer;

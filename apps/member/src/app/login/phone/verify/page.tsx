@@ -8,7 +8,7 @@ export default function VerifyOtpPage({
   const phone = searchParams.phone ?? "";
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-app flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm animate-fade-up">
         <h1 className="mb-2 font-display text-3xl italic leading-tight text-ink">Enter your code</h1>
         <p className="mb-6 text-sm text-taupe">Sent to {phone}.</p>
@@ -21,7 +21,7 @@ export default function VerifyOtpPage({
         )}
 
         {searchParams.error === "invalid" && (
-          <p className="mb-4 text-sm text-clay">
+          <p className="mb-4 text-sm text-gold">
             That code didn&apos;t match, or has expired. Request a new one.
           </p>
         )}

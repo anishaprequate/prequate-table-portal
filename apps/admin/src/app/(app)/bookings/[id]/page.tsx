@@ -8,6 +8,9 @@ import { BOOKING_STATUS_LABELS, type BookingStatus } from "@prequate/core";
 import { formatSlot } from "@/lib/format";
 import { BackLink } from "@/components/back-link";
 import { CancelBookingForm } from "@/components/cancel-booking-form";
+import { Toast } from "@/components/toast";
+import { HourRequestCard, REQUEST_ERRORS } from "@/components/hour-request-card";
+import { setBookingPlace } from "@/lib/actions/hour-requests";
 
 const KIND_LABELS: Record<string, string> = {
   NOTES: "Meeting notes",
@@ -21,7 +24,7 @@ export default async function BookingDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { rescheduled?: string; briefAdded?: string; error?: string; offered?: string };
+  searchParams: { rescheduled?: string; briefAdded?: string; error?: string; offered?: string; requestDone?: string; requestError?: string; placeDone?: string; placeError?: string };
 }) {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/login");
@@ -43,8 +46,22 @@ export default async function BookingDetailPage({
   const needsOutcome =
     !isUpcoming && booking.status !== "CANCELLED" && booking.status !== "COMPLETED" && booking.status !== "NO_SHOW";
 
+  const hasRequest = isUpcoming && (booking.status === "REQUESTED" || Boolean(booking.pendingStart));
+
   return (
     <div className="max-w-md">
+      <Toast param="placeDone" message="Place confirmed. The member has been told and the calendar invitation is sent." />
+      {searchParams.placeError && (
+        <p className="mb-6 text-sm text-deep-orange" role="alert">
+          {searchParams.placeError === "empty" ? "Type the place first." : "The calendar could not be updated, so nothing changed. Try again."}
+        </p>
+      )}
+      <Toast param="requestDone" message={searchParams.requestDone === "declined" ? "Declined. The member has been told." : "Confirmed. The member has been told."} />
+      {searchParams.requestError && (
+        <p className="mb-6 text-sm text-deep-orange" role="alert">
+          {REQUEST_ERRORS[searchParams.requestError] ?? "Something went wrong."}
+        </p>
+      )}
       {searchParams.rescheduled && (
         <p className="mb-6 rounded-md bg-orange/10 px-3 py-2 text-sm text-ink">
           Moved to its new time.
@@ -75,6 +92,39 @@ export default async function BookingDetailPage({
         {booking.status !== "REQUESTED" && booking.status !== "CONFIRMED" &&
           ` — ${BOOKING_STATUS_LABELS[booking.status as BookingStatus] ?? booking.status}`}
       </p>
+
+      {hasRequest && canManage && (
+        <div className="mb-8">
+          <HourRequestCard booking={booking} returnTo={`/bookings/${booking.id}`} showMember={false} />
+        </div>
+      )}
+
+      {canManage && isUpcoming && booking.status === "CONFIRMED" && booking.mode === "IN_PERSON" && (
+        <form action={setBookingPlace} className="mb-8 flex flex-col gap-2">
+          <input type="hidden" name="bookingId" value={booking.id} />
+          <label className="flex flex-col gap-1 text-sm text-ink">
+            Place
+            <input
+              type="text"
+              name="place"
+              defaultValue={booking.location ?? ""}
+              maxLength={200}
+              placeholder="For example, the partner's office, or a restaurant and branch"
+              className="min-h-[44px] rounded-md border border-grey/30 bg-paper px-3 text-ink"
+            />
+          </label>
+          <p className="text-xs text-grey">
+            {booking.location
+              ? "Changing it updates the calendar invitation and tells the member."
+              : "Until you confirm the place, the Hour is not on a calendar. Confirming it sends the invitation and tells the member."}
+          </p>
+          <div>
+            <button type="submit" className="min-h-[44px] rounded-md bg-ink px-5 text-sm font-medium text-paper transition hover:bg-ink/90">
+              {booking.location ? "Update the place" : "Confirm the place"}
+            </button>
+          </div>
+        </form>
+      )}
 
       {booking.memberContext && (
         <div className="mb-8">

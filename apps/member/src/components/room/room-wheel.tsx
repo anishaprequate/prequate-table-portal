@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatSeatDisplay } from "@/lib/format";
 import { Countdown } from "@/components/countdown";
 import type { Satellite, SatelliteKey } from "@/lib/room";
+import { longDate } from "@/lib/stable-date";
 
 // The wheel scales to the screen: 320px on anything wide enough, smaller on
 // narrow phones (never wider than the content area). Everything inside is
@@ -81,9 +82,26 @@ export function RoomWheel({
   const router = useRouter();
   const [flipped, setFlipped] = useState(false);
   const [selected, setSelected] = useState<SatelliteKey | null>(null);
+  // The name of the section under the pointer (or focused), and how far to
+  // nudge its label so it never runs off the edge of the screen.
+  const [hover, setHover] = useState<{ key: SatelliteKey; shift: number; above: boolean } | null>(null);
+
+  function showName(key: SatelliteKey, label: string, el: HTMLElement) {
+    const rect = el.getBoundingClientRect();
+    const half = (label.length * 7.5 + 24) / 2;
+    const centre = rect.left + rect.width / 2;
+    const margin = 8;
+    let shift = 0;
+    if (centre + half > window.innerWidth - margin) shift = window.innerWidth - margin - (centre + half);
+    else if (centre - half < margin) shift = margin - (centre - half);
+    // The label goes on the outer side, away from the centre circle.
+    const wheel = el.closest<HTMLElement>("[data-wheel]")?.getBoundingClientRect();
+    const above = wheel ? rect.top + rect.height / 2 < wheel.top + wheel.height / 2 : false;
+    setHover({ key, shift, above });
+  }
 
   const selectedSat = satellites.find((s) => s.key === selected) ?? null;
-  const playState = selected ? "paused" : "running";
+  const playState = selected || hover ? "paused" : "running";
 
   // First tap selects (and shows its live detail below); a second tap on the
   // same one opens it. Works the same with a mouse or a finger.
@@ -96,7 +114,7 @@ export function RoomWheel({
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
   }
   const seatingDateLabel = seatingDate
-    ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric" }).format(seatingDate)
+    ? longDate(seatingDate)
     : null;
 
   function toggleFlip() {
@@ -109,6 +127,7 @@ export function RoomWheel({
   return (
     <>
     <div
+      data-wheel
       className="relative mx-auto"
       style={{ ["--wheel" as string]: WHEEL, width: "var(--wheel)", height: "var(--wheel)" }}
     >
@@ -116,7 +135,7 @@ export function RoomWheel({
           counter-rotates at the same rate so it stays upright while it
           orbits. Both animations pause together while a satellite is selected. */}
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0 z-10"
         style={{ animation: "room-spin 100s linear infinite", animationPlayState: playState }}
       >
         {satellites.map((sat, i) => {
@@ -124,7 +143,7 @@ export function RoomWheel({
           return (
             <div
               key={sat.key}
-              className="absolute left-1/2 top-1/2 h-0 w-0 focus-within:z-20"
+              className="absolute left-1/2 top-1/2 h-0 w-0 focus-within:z-20 hover:z-20"
               style={{ transform: `rotate(${angle}deg) translateY(${ORBIT})` }}
             >
               {/* Cancels this satellite's own fixed placement angle — the
@@ -135,15 +154,28 @@ export function RoomWheel({
                   <button
                     type="button"
                     onClick={() => onSatelliteTap(sat)}
+                    onPointerEnter={(e) => e.pointerType === "mouse" && showName(sat.key, sat.label, e.currentTarget)}
+                    onPointerLeave={() => setHover((h) => (h?.key === sat.key ? null : h))}
+                    onFocus={(e) => e.currentTarget.matches(":focus-visible") && showName(sat.key, sat.label, e.currentTarget)}
+                    onBlur={() => setHover((h) => (h?.key === sat.key ? null : h))}
                     aria-label={`${sat.label}. ${sat.detail}`}
                     aria-pressed={selected === sat.key}
-                    className={`room-seat-filled tap relative -ml-7 -mt-7 flex h-14 w-14 items-center justify-center rounded-full text-ink transition-transform duration-300 ${
+                    className={`room-seat-filled tap pointer-events-auto relative !overflow-visible -ml-7 -mt-7 flex h-14 w-14 items-center justify-center rounded-full text-ink transition-transform duration-300 ${
                       selected === sat.key ? "z-10 scale-[1.15] !border-foil shadow-glow" : ""
                     }`}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                       {ICONS[sat.key]}
                     </svg>
+                    {hover?.key === sat.key && (
+                      <span
+                        aria-hidden
+                        className={`pointer-events-none absolute left-1/2 z-30 animate-fade-in whitespace-nowrap rounded-md bg-night px-3 py-1.5 text-xs font-normal tracking-wide text-cream shadow-lg ${hover.above ? "bottom-full mb-2" : "top-full mt-2"}`}
+                        style={{ transform: `translateX(calc(-50% + ${hover.shift}px))` }}
+                      >
+                        {sat.label}
+                      </span>
+                    )}
                     {sat.badge != null && (
                       <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] animate-scale-in items-center justify-center rounded-full bg-clay px-1 text-[10px] font-medium text-bone shadow-sm">
                         {sat.badge}
@@ -159,11 +191,11 @@ export function RoomWheel({
 
       {/* Center hub — the member's own seat. Fixed, never orbits. A tap
           flips it, same 600ms weighted flip as before. */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [perspective:1000px]">
+      <div className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 [perspective:1000px]">
         <button
           type="button"
           onClick={toggleFlip}
-          aria-label={flipped ? "Show your seat number" : "Show your seating story"}
+          aria-label={flipped ? "Show your seat number" : "Show what is next for you"}
           className="tap block"
           style={{ width: "calc(var(--wheel) * 0.47)", height: "calc(var(--wheel) * 0.47)" }}
         >
@@ -174,30 +206,36 @@ export function RoomWheel({
               transition: "transform 600ms cubic-bezier(0.65, -0.15, 0.35, 1.15)",
             }}
           >
-            <div className="room-plate grain absolute inset-0 flex flex-col items-center justify-center rounded-full [backface-visibility:hidden]">
+            <div
+              className="room-plate grain absolute inset-0 flex flex-col items-center justify-center rounded-full [backface-visibility:hidden]"
+              // Hidden at the half-turn as well, so a browser that ignores
+              // backface-visibility still shows only one face.
+              style={{ opacity: flipped ? 0 : 1, transition: "opacity 0ms linear 300ms" }}
+            >
               {seatNumber != null && (
-                <span
-                  className={`font-display not-italic leading-none text-clay ${nextUp ? "text-4xl" : "text-5xl"}`}
-                >
+                <span className="font-display text-5xl not-italic leading-none text-gold">
                   {formatSeatDisplay(String(seatNumber))}
-                </span>
-              )}
-              {nextUp && (
-                <span className="mt-1.5 flex max-w-[82%] flex-col items-center text-center leading-tight">
-                  <span className="line-clamp-2 text-[10px] text-ink">{nextUp.title}</span>
-                  <span className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-clay">
-                    <Countdown startsAt={nextUp.startsAt} fallback={nextUp.whenText} />
-                  </span>
                 </span>
               )}
             </div>
             <div
-              className="room-plate absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-full bg-ink px-6 text-center [backface-visibility:hidden]"
-              style={{ transform: "rotateY(180deg)" }}
+              className="room-plate absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-full bg-night px-5 text-center gold-on-dark [backface-visibility:hidden]"
+              style={{ transform: "rotateY(180deg)", opacity: flipped ? 1 : 0, transition: "opacity 0ms linear 300ms" }}
             >
-              <p className="font-display text-base italic leading-snug text-bone">Chosen, not sold to.</p>
-              {seatingDateLabel && (
-                <p className="text-[9px] uppercase tracking-[0.2em] text-foil">Seated {seatingDateLabel}</p>
+              {nextUp ? (
+                <>
+                  <p className="line-clamp-3 font-display text-lg italic leading-tight text-cream">{nextUp.title}</p>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-gold">
+                    <Countdown startsAt={nextUp.startsAt} fallback={nextUp.whenText} />
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-base italic leading-snug text-cream">Chosen, not sold to.</p>
+                  {seatingDateLabel && (
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-foil">Seated {seatingDateLabel}</p>
+                  )}
+                </>
               )}
             </div>
           </div>

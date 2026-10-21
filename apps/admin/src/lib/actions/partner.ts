@@ -1,10 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { prisma } from "@prequate/db";
-import { availability, UPLOADS_DIR } from "@prequate/core";
+import { availability, notifyMember, saveUpload } from "@prequate/core";
 import { getCurrentAdmin, canWrite } from "@/lib/session";
 
 export type PostState = { status: "idle" } | { status: "ok"; message: string } | { status: "error"; message: string };
@@ -32,7 +30,10 @@ export async function postHourNote(_prev: PostState, formData: FormData): Promis
 
   if (!HOUR_POST_KINDS.some((k) => k.value === kind)) return { status: "error", message: "Choose what you are posting." };
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { id: true, partnerId: true, status: true } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, partnerId: true, status: true, memberId: true, postPushedAt: true, partner: { select: { name: true } } },
+  });
   if (!booking) return { status: "error", message: "That Hour could not be found." };
   const ownsIt = booking.partnerId === admin.id;
   const fullAdmin = admin.role === "ADMIN_OWNER" || admin.role === "ADMIN_RM";
@@ -42,10 +43,8 @@ export async function postHourNote(_prev: PostState, formData: FormData): Promis
   let fileUrl: string | null = null;
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_FILE_BYTES) return { status: "error", message: "That file is over 15 MB. Send a smaller one." };
-    await mkdir(UPLOADS_DIR, { recursive: true });
     const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-    const storedName = `${bookingId}-${Date.now()}-${safeName}`;
-    await writeFile(path.join(UPLOADS_DIR, storedName), Buffer.from(await file.arrayBuffer()));
+    const storedName = await saveUpload("hour", `${bookingId}-${Date.now()}-${safeName}`, Buffer.from(await file.arrayBuffer()), file.type);
     fileName = file.name;
     fileUrl = `/api/briefs/${storedName}`;
   }
@@ -53,6 +52,20 @@ export async function postHourNote(_prev: PostState, formData: FormData): Promis
   if (!content && !fileUrl) return { status: "error", message: kind === "FILE" ? "Attach a file first." : "Write a few words first." };
 
   await prisma.brief.create({ data: { bookingId, authorId: admin.id, kind, content, fileName, fileUrl } });
+
+  // The member is told once per Hour per day. Later posts the same day are just
+  // there when they open the Hour.
+  const sameDay = booking.postPushedAt && Date.now() - booking.postPushedAt.getTime() < 24 * 3_600_000;
+  if (!sameDay) {
+    await prisma.booking.update({ where: { id: bookingId }, data: { postPushedAt: new Date() } });
+    await notifyMember({
+      memberId: booking.memberId,
+      type: "hour_post",
+      message: `${booking.partner.name.split(" ")[0]} has posted something after your Hour.`,
+      entityType: "booking",
+      entityId: bookingId,
+    });
+  }
 
   revalidatePath("/hours");
   revalidatePath(`/bookings/${bookingId}`);
@@ -77,7 +90,7 @@ async function targetPartner(partnerId?: string): Promise<{ id: string } | null>
   if (admin.role === "PARTNER") return { id: admin.id };
   if (admin.role !== "ADMIN_OWNER" && admin.role !== "ADMIN_RM") return null;
   if (!partnerId) return null;
-  return prisma.user.findFirst({ where: { id: partnerId, role: "PARTNER" }, select: { id: true } });
+  return prisma.user.findFirst({ where: { id: partnerId, hostsHours: true }, select: { id: true } });
 }
 
 export async function toggleSlot(startIso: string, partnerId?: string): Promise<PostState> {

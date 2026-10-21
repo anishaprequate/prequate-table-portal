@@ -5,13 +5,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MonthView } from "@/lib/hour-calendar";
 import { DaySheet } from "./day-sheet";
+import { shortDay, shortSlot } from "@/lib/stable-date";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const pad = (n: number) => String(n).padStart(2, "0");
 
 // A clean month. A small green dot marks a day with an open Hour; no dot, no
 // availability. Tap a dotted day and a sheet rises with the times.
-export function HourCalendar({ view, parentBookingId }: { view: MonthView; parentBookingId: string | null }) {
+export function HourCalendar({
+  view,
+  parentBookingId,
+  reschedule = null,
+}: {
+  view: MonthView;
+  parentBookingId: string | null;
+  // Moving an Hour the member already has: the booking, and the page the month
+  // arrows stay on.
+  reschedule?: { bookingId: string } | null;
+}) {
   const router = useRouter();
   const [openDay, setOpenDay] = useState<string | null>(null);
   const { current, months, openDays, used, today } = view;
@@ -33,6 +44,7 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
   const prev = months[idx - 1];
   const next = months[idx + 1];
   const extra = parentBookingId ? `&parentBookingId=${parentBookingId}` : "";
+  const base = reschedule ? `/the-hour/${reschedule.bookingId}/reschedule` : "/the-hour/book";
   const open = new Set(openDays);
 
   const arrow = "tap flex h-11 w-11 items-center justify-center rounded-md transition-colors duration-300";
@@ -41,7 +53,7 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
     <>
       <div className="mb-3 flex items-center justify-between">
         {prev ? (
-          <Link href={`/the-hour/book?m=${prev.param}${extra}`} className={`${arrow} text-taupe hover:text-ink`} aria-label={`Show ${prev.label}`}>
+          <Link href={`${base}?m=${prev.param}${extra}`} className={`${arrow} text-taupe hover:text-ink`} aria-label={`Show ${prev.label}`}>
             ←
           </Link>
         ) : (
@@ -53,7 +65,7 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
           {current.label}
         </h2>
         {next ? (
-          <Link href={`/the-hour/book?m=${next.param}${extra}`} className={`${arrow} text-taupe hover:text-ink`} aria-label={`Show ${next.label}`}>
+          <Link href={`${base}?m=${next.param}${extra}`} className={`${arrow} text-taupe hover:text-ink`} aria-label={`Show ${next.label}`}>
             →
           </Link>
         ) : (
@@ -84,12 +96,12 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
               aria-label={`${label}, times available`}
               className={`${common} tap transition-colors duration-300 hover:bg-foil/10`}
             >
-              <span className={isToday ? "font-medium text-clay" : "text-ink"}>{day}</span>
+              <span className={isToday ? "font-medium text-gold" : "text-ink"}>{day}</span>
               <span className="h-1.5 w-1.5 rounded-full bg-[#4F8A5B]" aria-hidden />
             </button>
           ) : (
             <div key={i} className={`${common} ${key < today ? "text-taupe/35" : "text-taupe"}`} aria-label={label}>
-              <span className={isToday ? "font-medium text-clay" : ""}>{day}</span>
+              <span className={isToday ? "font-medium text-gold" : ""}>{day}</span>
               <span className="h-1.5 w-1.5" aria-hidden />
             </div>
           );
@@ -98,9 +110,10 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
 
       {used && (
         <p className="mt-5 text-sm text-taupe">
-          Your {used.label.split(" ")[0]} Hour is booked with {used.partnerFirstName},{" "}
-          {new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(used.startTime))}.{" "}
-          <Link href={`/the-hour/${used.bookingId}`} className="text-clay underline decoration-clay/40 underline-offset-2">
+          {used.kind === "advisor" && !used.hasTime
+            ? `Your ${used.label.split(" ")[0]} Hour is with ${used.partnerFirstName}, on ${shortDay(new Date(used.startTime))}, time to be agreed. `
+            : `Your ${used.label.split(" ")[0]} Hour is booked with ${used.partnerFirstName}, ${shortSlot(new Date(used.startTime))}. `}
+          <Link href={used.bookingId ? `/the-hour/${used.bookingId}` : "/the-hour"} className="inline-flex min-h-[44px] items-center text-gold underline decoration-clay/40 underline-offset-2">
             See it
           </Link>
         </p>
@@ -115,7 +128,7 @@ export function HourCalendar({ view, parentBookingId }: { view: MonthView; paren
       </footer>
 
       {openDay && (
-        <DaySheet dayKey={openDay} parentBookingId={parentBookingId} onClose={() => setOpenDay(null)} />
+        <DaySheet dayKey={openDay} parentBookingId={parentBookingId} rescheduleBookingId={reschedule?.bookingId ?? null} onClose={() => setOpenDay(null)} />
       )}
     </>
   );

@@ -7,7 +7,7 @@ const label = "text-[11px] uppercase tracking-[0.2em] text-taupe";
 // The member's standing at the table. Always shown, so Home is never blank.
 export function YourSeatCard({ stats }: { stats: SeatStats }) {
   return (
-    <section className="card mt-6 p-5 sm:p-6" aria-labelledby="your-seat">
+    <section className="panel-clay mt-6 p-5 sm:p-6" aria-labelledby="your-seat">
       <h2 id="your-seat" className="mb-5 font-display text-3xl font-semibold text-ink">
         Your seat
       </h2>

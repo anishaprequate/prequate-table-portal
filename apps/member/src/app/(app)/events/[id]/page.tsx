@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@prequate/db";
 import { getCurrentUser } from "@/lib/session";
-import { formatSlot, formatDateOnly } from "@/lib/format";
+import { formatDateOnly } from "@/lib/format";
+import { clockTime, longDay } from "@/lib/stable-date";
 import { eventVisibleTo, joinFormConfig, memberEventState } from "@/lib/event-access";
 import { BackLink } from "@/components/back-link";
 import { Avatar } from "@/components/avatar";
@@ -10,6 +11,34 @@ import { RsvpButton } from "@/components/rsvp-button";
 import { StickyActionBar } from "@/components/sticky-action-bar";
 
 const PHOTOS_PER_PAGE = 20;
+
+// A place can be saved as plain words or as a Google Maps link. Either way the
+// member sees the venue's name, with the map one tap away.
+function placeOf(location: string): { name: string; mapsUrl: string } {
+  if (/^https?:\/\//i.test(location)) {
+    try {
+      const url = new URL(location);
+      const query = url.searchParams.get("query") ?? url.searchParams.get("q");
+      return { name: query ? query.replace(/\+/g, " ") : url.hostname.replace(/^www\./, ""), mapsUrl: location };
+    } catch {
+      return { name: location, mapsUrl: location };
+    }
+  }
+  return { name: location, mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}` };
+}
+
+const PIN = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+    <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" />
+    <circle cx="12" cy="9.5" r="2.5" />
+  </svg>
+);
+const TICKET = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+    <rect x="4" y="5" width="16" height="14" rx="2" />
+    <path d="M9 5v14M15 10h2M15 14h2" />
+  </svg>
+);
 
 export default async function EventDetailPage({
   params,
@@ -71,6 +100,8 @@ export default async function EventDetailPage({
   const attendees = event.attendeeVisibility === "VISIBLE_TO_ALL" ? joined : [];
   const myGuestNames: string[] = attendance?.guestNames ? JSON.parse(attendance.guestNames) : [];
   const canAct = !isPast && !isCancelled;
+  const place = event.location ? placeOf(event.location) : null;
+  const goingCount = joined.reduce((n, a) => n + 1 + a.guestCount, 0);
 
   const action = (
     <RsvpButton
@@ -82,7 +113,7 @@ export default async function EventDetailPage({
     />
   );
 
-  const statusCard = "mb-6 rounded-lg border border-foil/30 bg-foil/5 p-5 shadow-sm";
+  const statusCard = "panel-foil mb-6 p-5";
 
   return (
     <>
@@ -98,7 +129,7 @@ export default async function EventDetailPage({
             />
           )}
 
-          <h1 className="mb-1 font-display text-4xl italic leading-[1.05] text-ink sm:text-5xl">
+          <h1 className="mb-6 font-display text-4xl italic leading-[1.05] text-ink sm:text-5xl">
             {event.title}
             {isCancelled && (
               <span className="ml-3 align-middle rounded-full bg-taupe/10 px-2.5 py-1 text-sm font-sans not-italic text-taupe">
@@ -106,12 +137,56 @@ export default async function EventDetailPage({
               </span>
             )}
           </h1>
-          <p className="mb-8 text-sm text-taupe">
-            {closed && "By invitation · "}
-            {formatSlot(event.startTime)}
-            {event.location && ` · ${event.location}`}
-            {spotsLeft !== null && canAct && ` · ${Math.max(spotsLeft, 0)} spot${spotsLeft === 1 ? "" : "s"} left`}
-          </p>
+          <div className="panel-night mb-8 divide-y divide-taupe/20 overflow-hidden">
+            <div className="flex items-center gap-4 p-4">
+              <div className="flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-bone text-center shadow-sm ring-1 ring-taupe/15">
+                <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
+                  {longDay(event.startTime).split(" ")[2].slice(0, 3)}
+                </span>
+                <span className="font-display text-2xl leading-none text-ink">{event.startTime.getDate()}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-base font-medium text-ink">{longDay(event.startTime)}</p>
+                <p className="text-sm text-taupe">
+                  {clockTime(event.startTime)}
+                  {event.endTime.getTime() > event.startTime.getTime() && ` to ${clockTime(event.endTime)}`}
+                </p>
+              </div>
+            </div>
+
+            {place && (
+              <a
+                href={place.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 p-4 transition-colors duration-300 hover:bg-foil/10"
+              >
+                <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-bone text-foil shadow-sm ring-1 ring-taupe/15">
+                  {PIN}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-medium text-ink">{place.name}</span>
+                  <span className="block text-sm text-taupe">Open in Maps</span>
+                </span>
+              </a>
+            )}
+
+            {(closed || (spotsLeft !== null && canAct)) && (
+              <div className="flex items-center gap-4 p-4">
+                <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-bone text-foil shadow-sm ring-1 ring-taupe/15">
+                  {TICKET}
+                </span>
+                <div className="min-w-0">
+                  {closed && <p className="text-base font-medium text-ink">By invitation</p>}
+                  {spotsLeft !== null && canAct && (
+                    <p className={closed ? "text-sm text-taupe" : "text-base font-medium text-ink"}>
+                      {Math.max(spotsLeft, 0)} spot{spotsLeft === 1 ? "" : "s"} left
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {isCancelled && (
             <p className="card mb-8 bg-taupe/5 px-3 py-2 text-sm text-ink">
@@ -189,40 +264,68 @@ export default async function EventDetailPage({
             </div>
           )}
 
-          {attendees.length > 0 && (
-            <div className="card mb-6 p-5">
-              <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">Who&apos;s going</p>
-              <div className="mb-3 flex flex-wrap items-center">
-                {attendees.slice(0, 8).map((a) => (
-                  <Avatar
-                    key={a.id}
-                    name={a.member.name}
-                    photoUrl={a.member.photoUrl}
-                    size="sm"
-                    className="-ml-2 ring-2 ring-bone first:ml-0"
-                  />
-                ))}
-                {attendees.length > 8 && (
-                  <span className="-ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-taupe/10 text-xs text-taupe ring-2 ring-bone">
-                    +{attendees.length - 8}
-                  </span>
-                )}
-              </div>
-              <ul className="text-sm">
-                {attendees.map((a) => (
-                  <li key={a.id}>
-                    {a.member.name}
-                    {a.guestCount > 0 && ` + ${a.guestCount}`}
-                  </li>
-                ))}
-              </ul>
+          {joined.length > 0 && (
+            <div className="mb-8">
+              <p className="mb-3 text-xs uppercase tracking-[0.28em] text-taupe">
+                {goingCount} going
+              </p>
+              {attendees.length > 0 ? (
+                <>
+                  <div className="mb-3 flex flex-wrap items-center">
+                    {attendees.slice(0, 10).map((a) => (
+                      <Avatar
+                        key={a.id}
+                        name={a.member.name}
+                        photoUrl={a.member.photoUrl}
+                        size="md"
+                        className="-ml-2.5 ring-2 ring-bone first:ml-0"
+                      />
+                    ))}
+                    {attendees.length > 10 && (
+                      <span className="-ml-2.5 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-taupe/10 text-sm text-taupe ring-2 ring-bone">
+                        +{attendees.length - 10}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-ink">
+                    {attendees.length <= 3
+                      ? attendees.map((a) => a.member.name.split(" ")[0]).join(", ").replace(/, ([^,]*)$/, " and $1")
+                      : `${attendees
+                          .slice(0, 2)
+                          .map((a) => a.member.name.split(" ")[0])
+                          .join(", ")} and ${attendees.length - 2} others`}{" "}
+                    {attendees.length === 1 && attendees[0].guestCount === 0 ? "is" : "are"} going.
+                  </p>
+                  {attendees.length > 3 && (
+                    <details className="group mt-2">
+                      <summary className="tap flex min-h-[44px] cursor-pointer list-none items-center text-sm text-taupe underline decoration-taupe/40 underline-offset-2 hover:text-ink">
+                        See everyone
+                      </summary>
+                      <ul className="mt-1 flex flex-col gap-2">
+                        {attendees.map((a) => (
+                          <li key={a.id} className="flex items-center gap-3 text-sm">
+                            <Avatar name={a.member.name} photoUrl={a.member.photoUrl} size="sm" />
+                            <span>
+                              {a.member.name}
+                              {a.guestCount > 0 && ` + ${a.guestCount}`}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-taupe">The guest list is kept private for this one.</p>
+              )}
             </div>
           )}
 
           {event.description && (
-            <div className="card mb-6 p-5">
+            <div className="mb-8">
+              <p className="mb-2 text-xs uppercase tracking-[0.28em] text-taupe">About this event</p>
               <div
-                className="prose-editor text-sm leading-relaxed"
+                className="prose-editor text-sm leading-relaxed text-taupe"
                 dangerouslySetInnerHTML={{ __html: event.description }}
               />
             </div>

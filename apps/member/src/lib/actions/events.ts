@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
-import { googleCalendar } from "@prequate/core";
+import { googleCalendar, notifyDinnerQuestion } from "@prequate/core";
 import { getCurrentUser } from "@/lib/session";
 
 export type JoinResult = "joined" | "waitlisted" | "pending";
@@ -120,17 +120,23 @@ async function performJoin(formData: FormData): Promise<JoinResult> {
 
   let googleCalendarEventId = existing?.googleCalendarEventId ?? null;
   if (!waitlisted && !googleCalendarEventId) {
-    const ref = await googleCalendar.createEventCalendarEntry({
-      eventId: event.id,
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      memberName: user.name,
-      memberEmail: user.email,
-      startTime: event.startTime,
-      endTime: event.endTime,
-    });
-    googleCalendarEventId = ref.googleCalendarEventId;
+    // The place on the list matters more than the calendar entry: if Google
+    // refuses, the member is still in, and the entry is simply missing.
+    try {
+      const ref = await googleCalendar.createEventCalendarEntry({
+        eventId: event.id,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        memberName: user.name,
+        memberEmail: user.email,
+        startTime: event.startTime,
+        endTime: event.endTime,
+      });
+      googleCalendarEventId = ref.googleCalendarEventId;
+    } catch (err) {
+      console.error("Calendar entry failed for event RSVP", err);
+    }
   }
 
   await prisma.eventAttendance.upsert({
@@ -138,6 +144,9 @@ async function performJoin(formData: FormData): Promise<JoinResult> {
     create: { eventId, memberId: user.id, joined: !waitlisted, waitlisted, googleCalendarEventId, ...rsvpData },
     update: { joined: !waitlisted, waitlisted, pendingApproval: false, declinedAt: null, googleCalendarEventId, ...rsvpData },
   });
+
+  // Someone who has just got a place hears the dinner question, if there is one.
+  if (!waitlisted) await notifyDinnerQuestion(eventId, user.id);
 
   revalidatePath(`/events/${eventId}`);
   return waitlisted ? "waitlisted" : "joined";

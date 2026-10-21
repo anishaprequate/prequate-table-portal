@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      <NavShell memberName={user.name} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications}>
+      <NavShell memberName={user.name} memberPhotoUrl={user.photoUrl} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications}>
         {children}
       </NavShell>
     </ToastProvider>

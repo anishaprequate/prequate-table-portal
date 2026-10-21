@@ -7,6 +7,6 @@ import { canSeeSection, homeFor, type Section } from "@/lib/access";
 export async function requireSection(section: Section) {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/login");
-  if (!canSeeSection(admin.role, section)) redirect(homeFor(admin.role));
+  if (!canSeeSection(admin.role, section, { hostsHours: admin.hostsHours, advisorDesk: admin.advisorDesk })) redirect(homeFor(admin.role));
   return admin;
 }

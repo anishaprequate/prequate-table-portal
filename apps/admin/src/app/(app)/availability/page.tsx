@@ -21,7 +21,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
   if (!isPartner && !isFull) redirect("/");
 
   const partners = isFull
-    ? await prisma.user.findMany({ where: { role: "PARTNER" }, orderBy: { name: "asc" }, select: { id: true, name: true } })
+    ? await prisma.user.findMany({ where: { hostsHours: true }, orderBy: { name: "asc" }, select: { id: true, name: true } })
     : [];
   const partnerId = isPartner ? admin.id : (partners.find((p) => p.id === searchParams.partner)?.id ?? partners[0]?.id);
   const partner = partnerId

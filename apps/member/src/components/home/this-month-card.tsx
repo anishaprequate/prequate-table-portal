@@ -31,7 +31,9 @@ export function ThisMonthCard({ data, people }: { data: ThisMonth; people: { id:
           {hour.state === "booked" && hour.startTime && (
             <>
               <p className="mt-2 text-base text-ink">
-                Booked with {hour.partnerName?.split(" ")[0]}, {formatSlot(hour.startTime)}.
+                {hour.awaiting
+                  ? `Requested with ${hour.partnerName?.split(" ")[0]}, ${formatSlot(hour.startTime)}. Waiting for confirmation.`
+                  : `Booked with ${hour.partnerName?.split(" ")[0]}, ${formatSlot(hour.startTime)}.`}
               </p>
               <Link href={`/the-hour/${hour.bookingId}`} className="btn-ghost tap mt-1 !px-0">
                 See the details
@@ -42,6 +44,20 @@ export function ThisMonthCard({ data, people }: { data: ThisMonth; people: { id:
             <p className="mt-2 text-base text-ink">
               Your {hour.monthName} Hour was with {hour.partnerName?.split(" ")[0]} on {formatDateOnly(hour.startTime)}.
             </p>
+          )}
+          {hour.state === "advisor" && hour.startTime && (
+            <>
+              <p className="mt-2 text-base text-ink">
+                {hour.advisorStatus === "CONFIRMED"
+                  ? `Booked with ${hour.partnerName?.split(" ")[0]}, ${formatSlot(hour.startTime)}.`
+                  : hour.advisorStatus === "OFFERED"
+                    ? `${hour.partnerName?.split(" ")[0]} has times for you. Choose one.`
+                    : `You proposed ${formatDateOnly(hour.startTime)} with ${hour.partnerName?.split(" ")[0]}. We will come back with times.`}
+              </p>
+              <Link href="/the-hour" className="btn-ghost tap mt-1 !px-0">
+                See it
+              </Link>
+            </>
           )}
           {hour.state === "open" && (
             <>
@@ -57,7 +73,7 @@ export function ThisMonthCard({ data, people }: { data: ThisMonth; people: { id:
 
         {/* The question */}
         {question && (
-          <div className="py-5">
+          <div className="panel-foil my-5 p-4">
             <p className={label}>The question</p>
             <p className="mt-2 font-display text-xl italic leading-snug text-ink">{question.question}</p>
             <p className="mt-1 text-xs text-taupe">For {question.eventTitle}.</p>
@@ -73,13 +89,13 @@ export function ThisMonthCard({ data, people }: { data: ThisMonth; people: { id:
 
         {/* The book */}
         {book && (
-          <div className="pt-5">
+          <div className="panel-night mt-5 p-4">
             <p className={`${label} mb-3`}>The book</p>
             <div className="flex items-center gap-4">
               <div
                 aria-hidden
-                className="relative h-20 w-14 flex-shrink-0 rounded-sm bg-ink shadow-md"
-                style={{ boxShadow: "inset 4px 0 0 rgba(201,164,85,0.55), 0 6px 14px rgba(22,22,22,0.18)" }}
+                className="relative h-20 w-14 flex-shrink-0 rounded-sm shadow-md"
+                style={{ background: "rgb(var(--c-claypanel))", boxShadow: "inset 4px 0 0 rgba(201,164,85,0.55), 0 6px 14px rgba(22,22,22,0.18)" }}
               >
                 <span className="absolute inset-x-2 top-3 h-px bg-foil/70" />
                 <span className="absolute inset-x-2 top-5 h-px bg-foil/40" />
@@ -88,7 +104,7 @@ export function ThisMonthCard({ data, people }: { data: ThisMonth; people: { id:
                 <p className="font-display text-xl italic leading-tight text-ink">{book.title}</p>
                 {book.author && <p className="text-sm text-taupe">{book.author}</p>}
                 {book.dinnerAt && (
-                  <p className="mt-1 text-xs text-clay">Author dinner: {formatSlot(book.dinnerAt)}</p>
+                  <p className="mt-1 text-xs text-gold">Author dinner: {formatSlot(book.dinnerAt)}</p>
                 )}
               </div>
             </div>

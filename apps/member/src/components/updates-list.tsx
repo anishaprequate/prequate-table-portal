@@ -49,7 +49,7 @@ export function UpdatesList({ items }: { items: UpdateItem[] }) {
           >
             <span
               className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
-                item.tone === "nudge" ? "bg-foil/20 text-clay" : "bg-taupe/10 text-ink"
+                item.tone === "nudge" ? "bg-foil/20 text-gold" : "bg-taupe/10 text-ink"
               }`}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -59,7 +59,7 @@ export function UpdatesList({ items }: { items: UpdateItem[] }) {
 
             <span className="min-w-0 flex-1">
               {item.tag && (
-                <span className="mb-1 inline-block rounded-full bg-foil/15 px-2.5 py-0.5 text-[11px] text-clay">
+                <span className="mb-1 inline-block rounded-full bg-foil/15 px-2.5 py-0.5 text-[11px] text-gold">
                   {item.tag}
                 </span>
               )}
@@ -68,7 +68,7 @@ export function UpdatesList({ items }: { items: UpdateItem[] }) {
             </span>
 
             {item.startsAt && item.whenText && (
-              <span className="mt-1 flex-shrink-0 text-right text-sm font-medium text-clay">
+              <span className="mt-1 flex-shrink-0 text-right text-sm font-medium text-gold">
                 <Countdown startsAt={item.startsAt} fallback={item.whenText} />
               </span>
             )}

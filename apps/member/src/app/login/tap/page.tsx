@@ -10,7 +10,7 @@ export default async function TapLoginPage() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="flex min-h-app flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm animate-fade-up text-center">
         <div className="card mx-auto mb-8 flex h-40 w-40 items-center justify-center rounded-full px-6 text-center shadow-md">
           <span className="font-display text-lg italic leading-snug text-ink">
@@ -33,7 +33,7 @@ export default async function TapLoginPage() {
             </select>
           </label>
 
-          <button type="submit" className="btn-primary mt-2 w-full !bg-foil !text-ink hover:!text-bone">
+          <button type="submit" className="btn-primary mt-2 w-full !bg-foil !text-night hover:!text-cream">
             Simulate tap
           </button>
         </form>

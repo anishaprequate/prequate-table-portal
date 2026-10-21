@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@prequate/db";
+import { notifyMember } from "@prequate/core";
 import { getCurrentUser } from "@/lib/session";
 
 export async function requestIntroduction(formData: FormData) {
@@ -42,6 +43,19 @@ export async function respondToIntroduction(formData: FormData) {
   if (!request || request.targetId !== user.id || !request.routedAt) redirect("/members?tab=received");
 
   await prisma.introductionRequest.update({ where: { id }, data: { status: decision } });
+
+  // The member who asked hears the answer: a push when accepted, only the
+  // Notifications page when declined.
+  await notifyMember({
+    memberId: request.requesterId,
+    type: decision === "ACCEPTED" ? "intro_accepted" : "intro_declined",
+    message:
+      decision === "ACCEPTED"
+        ? `${user.name} accepted your introduction.`
+        : `${user.name} is not able to take the introduction right now.`,
+    entityType: "intro_request",
+    entityId: id,
+  });
 
   revalidatePath("/members");
   redirect("/members?tab=received&responded=1");

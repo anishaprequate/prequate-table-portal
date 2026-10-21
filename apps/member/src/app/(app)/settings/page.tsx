@@ -6,6 +6,7 @@ import { updateProfile } from "@/lib/actions/profile";
 import { PageHero } from "@/components/page-hero";
 import { formatSeatDisplay } from "@/lib/format";
 import { PhotoPicker } from "@/components/photo-picker";
+import { NotificationControls } from "@/components/pwa/notification-controls";
 
 export default async function SettingsPage({
   searchParams,
@@ -92,6 +93,8 @@ export default async function SettingsPage({
         </form>
       </div>
 
+      <NotificationControls />
+
       <form action={updateSettings} className="flex flex-col gap-8">
         <div className="card p-5">
           <p className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Notifications</p>
@@ -104,8 +107,10 @@ export default async function SettingsPage({
                 className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
-                Email me 24 hours before The Hour
-                <span className="block text-xs text-taupe">A reminder before each confirmed session.</span>
+                Email me about The Hour
+                <span className="block text-xs text-taupe">
+                  A reminder the day before, and one note if your Hour is still open late in the month.
+                </span>
               </span>
             </label>
 
@@ -117,9 +122,9 @@ export default async function SettingsPage({
                 className="mt-0.5 h-5 w-5 flex-shrink-0 accent-foil"
               />
               <span>
-                Email me event updates and blasts
+                Email me about events
                 <span className="block text-xs text-taupe">
-                  Messages the team sends to everyone registered for an event.
+                  Invitations, the day before and the morning of, changes and cancellations, and messages the team sends to a guest list.
                 </span>
               </span>
             </label>
@@ -134,7 +139,7 @@ export default async function SettingsPage({
               <span>
                 Email me post-event surveys
                 <span className="block text-xs text-taupe">
-                  Sent a day after an event you attended, with one reminder.
+                  One email a day after an event you attended.
                 </span>
               </span>
             </label>
@@ -188,7 +193,7 @@ export default async function SettingsPage({
         <p className="text-xs leading-relaxed text-taupe">{crisisText}</p>
         <p className="mt-1.5 text-sm text-ink">
           {telHref ? (
-            <a href={telHref} className="underline decoration-taupe/40 underline-offset-2">
+            <a href={telHref} className="inline-flex min-h-[44px] items-center underline decoration-taupe/40 underline-offset-2">
               {crisisContact}
             </a>
           ) : (

@@ -194,7 +194,7 @@ export default async function EventsPage({
                     inMonth ? "" : "opacity-30"
                   } ${isSelected ? "!bg-ink !text-bone" : ""}`}
                 >
-                  <span className={isToday && !isSelected ? "font-medium text-clay" : ""}>{day.getDate()}</span>
+                  <span className={isToday && !isSelected ? "font-medium text-gold" : ""}>{day.getDate()}</span>
                   <span className="flex h-1.5 gap-0.5">
                     {dayEvents.slice(0, 3).map((e) => (
                       <span key={e.id} className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-foil" : "bg-clay"}`} />
@@ -213,8 +213,8 @@ export default async function EventsPage({
               <p className="text-sm text-taupe">Nothing on the calendar{selectedDay ? " that day" : " this month"}.</p>
             ) : (
               <div className="flex flex-col gap-5">
-                {agenda.map((e) => (
-                  <EventCard key={e.id} event={toCard(e)} />
+                {agenda.map((e, i) => (
+                  <EventCard key={e.id} event={toCard(e)} tone={i % 2 === 0 ? "night" : "bone"} />
                 ))}
               </div>
             )}
@@ -226,8 +226,8 @@ export default async function EventsPage({
             <h2 className="mb-4 text-xs uppercase tracking-[0.28em] text-taupe">Upcoming</h2>
             {upcoming.length === 0 && <p className="text-sm text-taupe">Nothing on the calendar yet.</p>}
             <div className="flex flex-col gap-5">
-              {upcoming.map((event) => (
-                <EventCard key={event.id} event={toCard(event)} />
+              {upcoming.map((event, i) => (
+                <EventCard key={event.id} event={toCard(event)} tone={i === 0 ? "night" : i % 2 === 1 ? "bone" : "clay"} />
               ))}
             </div>
           </section>

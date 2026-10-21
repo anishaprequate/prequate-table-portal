@@ -22,7 +22,7 @@ export interface PartnerAvailabilityLine {
 // choice for the booking flow's own slot picker) and would read as "wide
 // open" rather than the scarcity this panel is meant to convey.
 export async function getPartnerAvailabilityLines(): Promise<PartnerAvailabilityLine[]> {
-  const partners = await prisma.user.findMany({ where: { role: "PARTNER" }, orderBy: { name: "asc" } });
+  const partners = await prisma.user.findMany({ where: { hostsHours: true }, orderBy: { name: "asc" } });
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);

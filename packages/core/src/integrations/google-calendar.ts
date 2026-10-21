@@ -52,6 +52,8 @@ export async function createCalendarEvent(params: {
   memberContext?: string | null;
   // An online Hour gets a Google Meet link added to the event.
   online?: boolean;
+  // An in person Hour: the place, once it is final.
+  location?: string | null;
   startTime: Date;
   endTime: Date;
 }): Promise<CalendarEventRef> {
@@ -91,6 +93,7 @@ export async function createCalendarEvent(params: {
       body: JSON.stringify({
         summary: `The Hour: ${params.memberName} × ${params.partnerName}`,
         description: descriptionLines.join("\n"),
+        ...(params.location ? { location: params.location } : {}),
         start: { dateTime: params.startTime.toISOString() },
         end: { dateTime: params.endTime.toISOString() },
         attendees,
@@ -143,6 +146,13 @@ export async function createEventCalendarEntry(params: {
     ? [{ email: params.memberEmail, displayName: params.memberName }]
     : [];
 
+  // Google refuses an event that ends at or before its start. An event saved
+  // without a real end time still gets a calendar entry, two hours long.
+  const endTime =
+    params.endTime.getTime() > params.startTime.getTime()
+      ? params.endTime
+      : new Date(params.startTime.getTime() + 2 * 3_600_000);
+
   const response = await fetch(
     `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events`,
     {
@@ -156,7 +166,7 @@ export async function createEventCalendarEntry(params: {
         description: params.description ? params.description.replace(/<[^>]+>/g, " ").trim() : undefined,
         location: params.location ?? undefined,
         start: { dateTime: params.startTime.toISOString() },
-        end: { dateTime: params.endTime.toISOString() },
+        end: { dateTime: endTime.toISOString() },
         attendees,
       }),
     },
@@ -272,3 +282,18 @@ export async function rescheduleCalendarEvent(params: {
   return { googleCalendarEventId: params.googleCalendarEventId };
 }
 
+
+// An in person Hour whose place is changed after its event exists.
+export async function setCalendarEventLocation(params: { googleCalendarEventId: string; location: string }): Promise<void> {
+  const connection = await getActiveConnection();
+  if (!connection || params.googleCalendarEventId.startsWith("mock-gcal-")) return;
+  const response = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(connection.calendarId)}/events/${params.googleCalendarEventId}?sendUpdates=all`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${connection.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ location: params.location }),
+    },
+  );
+  if (!response.ok) throw new Error(`Google Calendar location update failed: ${response.status}`);
+}

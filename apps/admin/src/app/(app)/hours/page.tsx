@@ -5,6 +5,8 @@ import { getCurrentAdmin } from "@/lib/session";
 import { formatSlot } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 import { PostComposer } from "@/components/post-composer";
+import { Toast } from "@/components/toast";
+import { HourRequestCard, REQUEST_ERRORS } from "@/components/hour-request-card";
 
 const KIND_LABELS: Record<string, string> = {
   NOTES: "Meeting notes",
@@ -17,10 +19,10 @@ const clamp = (s: string, n = 220) => (s.length > n ? `${s.slice(0, n - 1).trim(
 
 // A partner's one home: the Hours coming up, each with what the member wrote
 // and a short briefing, and the Hours just held that are waiting for notes.
-export default async function HoursPage() {
+export default async function HoursPage({ searchParams }: { searchParams: { requestDone?: string; requestError?: string } }) {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/login");
-  if (admin.role !== "PARTNER") redirect("/");
+  if (admin.role !== "PARTNER" && !admin.hostsHours) redirect("/");
 
   const now = new Date();
   const recent = new Date(now.getTime() - 21 * 24 * 3_600_000);
@@ -38,7 +40,9 @@ export default async function HoursPage() {
     orderBy: { startTime: "asc" },
   });
 
-  const upcoming = bookings.filter((b) => b.startTime >= now);
+  // Requests waiting for an answer: new Hours (not yet confirmed) and proposed moves.
+  const requests = bookings.filter((b) => b.startTime >= now && (b.status === "REQUESTED" || b.pendingStart));
+  const upcoming = bookings.filter((b) => b.startTime >= now && b.status !== "REQUESTED");
   const held = bookings.filter((b) => b.startTime < now).reverse();
 
   // For the briefing: how many Hours each member has had with this partner,
@@ -55,7 +59,26 @@ export default async function HoursPage() {
 
   return (
     <div className="max-w-2xl">
+      <Toast param="requestDone" message={searchParams.requestDone === "declined" ? "Declined. The member has been told." : "Confirmed. The member has been told."} />
       <PageHero title="My" accent="Hours." subtitle="What is coming up, and what is waiting for your notes." />
+
+      {searchParams.requestError && (
+        <p className="mb-6 text-sm text-deep-orange" role="alert">
+          {REQUEST_ERRORS[searchParams.requestError] ?? "Something went wrong."}
+        </p>
+      )}
+      {requests.length > 0 && (
+        <section className="mb-12">
+          <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Waiting for your answer ({requests.length})</h2>
+          <ul className="flex flex-col gap-4">
+            {requests.map((b) => (
+              <li key={b.id}>
+                <HourRequestCard booking={b} returnTo="/hours" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mb-12">
         <h2 className="mb-4 text-xs uppercase tracking-wide text-grey">Coming up ({upcoming.length})</h2>
@@ -73,8 +96,11 @@ export default async function HoursPage() {
                     <p className="font-display text-2xl italic leading-tight text-ink">{b.member.name}</p>
                     <p className="text-sm text-grey">{formatSlot(b.startTime)}</p>
                   </div>
-                  <span className="flex-shrink-0 rounded-full bg-grey/10 px-3 py-1 text-xs text-ink">
-                    {b.mode === "ONLINE" ? "Online" : "In person"}
+                  <span className="flex flex-shrink-0 flex-col items-end gap-1">
+                    <span className="rounded-full bg-grey/10 px-3 py-1 text-xs text-ink">{b.mode === "ONLINE" ? "Online" : "In person"}</span>
+                    {b.mode === "IN_PERSON" && !b.location && (
+                      <span className="rounded-full bg-orange/15 px-3 py-1 text-xs text-ink">Place to confirm</span>
+                    )}
                   </span>
                 </div>
 

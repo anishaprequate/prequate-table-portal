@@ -40,7 +40,7 @@ export default async function MemberProfilePage({
           <SeatBadge seatNumber={member.seatNumber} />
           <Avatar name={member.name} photoUrl={member.photoUrl} size="lg" />
           <h1 className="min-w-0 break-words font-display text-4xl italic leading-[1.02] tracking-[-0.01em] text-ink sm:text-[2.75rem]">
-            {firstName} <span className="text-clay">{lastName}</span>
+            {firstName} <span className="text-gold">{lastName}</span>
           </h1>
         </div>
 
